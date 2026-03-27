@@ -1,0 +1,9 @@
+﻿python : [2026-03-27 11:41:12] [INFO    ] discord.client: logging in using static token
+At line:1 char:48
++ ... :\Users\user\Desktop\新增資料夾\discord_tags"; python main.py 2>&1 | Out-F ...
++                                               ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([2026-03-27 11:...ng static token:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[2026-03-27 11:41:14] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 49edc01a19940d9a7
+8f3260615d1285f).
