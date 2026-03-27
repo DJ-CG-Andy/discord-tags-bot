@@ -158,7 +158,21 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
                 if not has_tag:
                     continue  # 沒有這個標籤，跳過
                 
-                # 移除標籤
+                # 檢查這條訊息上還有多少人在使用這個 emoji
+                # 遍歷所有反應，檢查是否還有相同的 emoji
+                has_other_reactions = False
+                for reaction in message.reactions:
+                    if compare_emoji(tag.emoji, reaction.emoji):
+                        if reaction.count > 0:
+                            has_other_reactions = True
+                            break
+                
+                # 如果還有其他人在使用這個 emoji，不刪除標籤
+                if has_other_reactions:
+                    print(f"訊息 {message.id} 上還有其他人在使用 emoji {tag.emoji}，不刪除標籤")
+                    return
+                
+                # 只有當所有人都移除了 emoji，才刪除標籤
                 success = await db.untag_message(str(message.id), tag.id)
                 
                 if success:
