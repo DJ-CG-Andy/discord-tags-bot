@@ -119,6 +119,63 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     except Exception as e:
         print(f"偵測 emoji 反應時發生錯誤: {e}")
 
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    """偵測 emoji 反應被移除並自動移除標籤"""
+    # 只處理消息反應，不處理頻道反應
+    if payload.channel_id is None or payload.message_id is None:
+        return
+    
+    # 獲取頻道和消息
+    try:
+        channel = bot.get_channel(payload.channel_id)
+        if not channel:
+            return
+        
+        message = await channel.fetch_message(payload.message_id)
+        
+        # 檢查這個 emoji 是否對應一個標籤
+        # 使用 emoji_utils 比較標籤 emoji 和反應 emoji
+        
+        # 獲取這個消息的所有標籤
+        existing_tags = await db.get_message_tags(message.id)
+        
+        # 查找對應的標籤
+        tags = await tag_manager.get_available_tags()
+        for tag in tags:
+            # 使用 compare_emoji 函數進行比較
+            if compare_emoji(tag.emoji, payload.emoji):
+                # 檢查是否這個消息有這個標籤
+                has_tag = any(mt.tag_id == tag.id for mt in existing_tags)
+                if not has_tag:
+                    continue  # 沒有這個標籤，跳過
+                
+                # 移除標籤
+                success = await db.untag_message(str(message.id), tag.id)
+                
+                if success:
+                    # 發送確認訊息
+                    display_emoji = str(payload.emoji)
+                    embed = discord.Embed(
+                        title=f"{display_emoji} 自動移除標籤",
+                        description=f"訊息已自動移除標籤 `{tag.name}`",
+                        color=discord.Color.orange(),
+                        timestamp=datetime.now()
+                    )
+                    embed.add_field(name="標籤", value=f"{display_emoji} {tag.name}", inline=True)
+                    if tag.description:
+                        embed.add_field(name="說明", value=tag.description, inline=True)
+                    embed.add_field(name="操作者", value=f"<@{payload.user_id}>", inline=True)
+                    embed.set_footer(text=f"消息ID: {message.id}")
+                    
+                    # 發送回應
+                    await message.reply(embed=embed)
+                
+                break  # 找到匹配的標籤後跳出循環
+    
+    except Exception as e:
+        print(f"偵測 emoji 移除時發生錯誤: {e}")
+
 # ========== Bot 啟動 ==========
 
 @bot.event
@@ -196,7 +253,7 @@ class MainMenuView(View):
                     color=discord.Color.orange()
                 )
                 embed.add_field(name="💡 提示", value="使用 `!menu` 點擊「🏷️ 新增標籤」來創建新標籤", inline=False)
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(embed=embed)
                 return
             
             # 分組顯示標籤
@@ -215,11 +272,11 @@ class MainMenuView(View):
             
             # 添加返回按鈕
             view = BackToMenuView()
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+            await interaction.response.send_message(embed=embed, view=view)
             
         except Exception as e:
             print(f"查看標籤錯誤: {e}")
-            await interaction.response.send_message("❌ 查看標籤時發生錯誤", ephemeral=True)
+            await interaction.response.send_message("❌ 查看標籤時發生錯誤")
     
     @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -284,14 +341,14 @@ class AddTagModal(Modal, title='新增標籤'):
         
         # 驗證 emoji
         if len(normalized_emoji) == 0:
-            await interaction.response.send_message("❌ Emoji 不能為空！", ephemeral=True)
+            await interaction.response.send_message("❌ Emoji 不能為空！")
             return
         
         # 檢查 emoji 是否已存在（使用標準化後的 emoji 進行比較）
         tags = await tag_manager.get_available_tags()
         for tag in tags:
             if normalize_emoji(tag.emoji) == normalized_emoji:
-                await interaction.response.send_message(f"❌ Emoji `{tag_emoji}` 已經被使用！", ephemeral=True)
+                await interaction.response.send_message(f"❌ Emoji `{tag_emoji}` 已經被使用！")
                 return
         
         # 創建標籤（使用標準化後的 emoji）
@@ -309,9 +366,9 @@ class AddTagModal(Modal, title='新增標籤'):
                 embed.add_field(name="說明", value=tag_description, inline=False)
             embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 `{tag_emoji}` emoji，就會自動加入此標籤！", inline=False)
             
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message("❌ 標籤創建失敗，可能已存在", ephemeral=True)
+            await interaction.response.send_message("❌ 標籤創建失敗，可能已存在")
 
 # ========== 搜索標籤模態框 ==========
 
@@ -357,11 +414,11 @@ class SearchTagModal(Modal, title='搜索標籤'):
                 break
         
         if not found_tag:
-            await interaction.response.send_message(f"❌ 找不到標籤 `{tag_name_input}`，請使用 `!menu` -> `📋 查看標籤` 查看可用標籤", ephemeral=True)
+            await interaction.response.send_message(f"❌ 找不到標籤 `{tag_name_input}`，請使用 `!menu` -> `📋 查看標籤` 查看可用標籤")
             return
         
         # 搜索帶有此標籤的訊息
-        message_tags = await db.search_by_tag(found_tag.id, limit)
+        message_tags = await db.search_by_tag(found_tag.name, limit=limit)
         
         if not message_tags:
             embed = discord.Embed(
@@ -370,7 +427,7 @@ class SearchTagModal(Modal, title='搜索標籤'):
                 color=discord.Color.orange()
             )
             embed.add_field(name="💡 提示", value=f"試試在訊息上添加 {found_tag.emoji} emoji 來自動加入標籤！", inline=False)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed)
             return
         
         # 顯示結果
@@ -390,7 +447,7 @@ class SearchTagModal(Modal, title='搜索標籤'):
         
         # 添加返回按鈕
         view = BackToMenuView()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view)
 
 # ========== 進階功能菜單 ==========
 
@@ -430,7 +487,7 @@ class AdvancedFeaturesView(View):
             
         except Exception as e:
             print(f"查看統計錯誤: {e}")
-            await interaction.response.send_message("❌ 查看統計時發生錯誤", ephemeral=True)
+            await interaction.response.send_message("❌ 查看統計時發生錯誤")
     
     @discord.ui.button(label="🗑️ 刪除標籤", style=discord.ButtonStyle.danger, emoji="🗑️")
     async def delete_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -478,7 +535,7 @@ class ImportHistoryModal(Modal, title='導入歷史訊息'):
         
         # 驗證 emoji
         if len(normalized_emoji) == 0:
-            await interaction.response.send_message("❌ Emoji 不能為空！", ephemeral=True)
+            await interaction.response.send_message("❌ Emoji 不能為空！")
             return
         
         # 查找對應的標籤（使用標準化後的 emoji 進行比較）
@@ -490,24 +547,24 @@ class ImportHistoryModal(Modal, title='導入歷史訊息'):
                 break
         
         if not found_tag:
-            await interaction.response.send_message(f"❌ 找不到使用 Emoji `{emoji_input}` 的標籤，請先創建標籤！", ephemeral=True)
+            await interaction.response.send_message(f"❌ 找不到使用 Emoji `{emoji_input}` 的標籤，請先創建標籤！")
             return
         
         # 查找頻道
         channel = discord.utils.get(interaction.guild.text_channels, name=channel_name_input)
         if not channel:
-            await interaction.response.send_message(f"❌ 找不到頻道 `{channel_name_input}`！", ephemeral=True)
+            await interaction.response.send_message(f"❌ 找不到頻道 `{channel_name_input}`！")
             return
         
         # 開始導入歷史
-        await interaction.response.send_message(f"📥 正在導入 `{channel.name}` 頻道的歷史訊息...", ephemeral=True)
+        await interaction.response.send_message(f"📥 正在導入 `{channel.name}` 頻道的歷史訊息...")
         
         # 使用 history_processor 導入歷史
         try:
             await history_processor.import_history_by_emoji(interaction, channel, found_tag)
         except Exception as e:
             print(f"導入歷史錯誤: {e}")
-            await interaction.followup.send(f"❌ 導入歷史時發生錯誤: {str(e)}", ephemeral=True)
+            await interaction.followup.send(f"❌ 導入歷史時發生錯誤: {str(e)}")
 
 # ========== 刪除標籤模態框 ==========
 
@@ -538,7 +595,7 @@ class DeleteTagModal(Modal, title='刪除標籤'):
                 break
         
         if not found_tag:
-            await interaction.response.send_message(f"❌ 找不到使用 Emoji `{emoji_input}` 的標籤！", ephemeral=True)
+            await interaction.response.send_message(f"❌ 找不到使用 Emoji `{emoji_input}` 的標籤！")
             return
         
         # 刪除標籤
@@ -553,9 +610,9 @@ class DeleteTagModal(Modal, title='刪除標籤'):
             embed.add_field(name="名稱", value=found_tag.name, inline=True)
             embed.add_field(name="Emoji", value=found_tag.emoji, inline=True)
             
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message("❌ 標籤刪除失敗", ephemeral=True)
+            await interaction.response.send_message("❌ 標籤刪除失敗")
 
 # ========== 命令 ==========
 
