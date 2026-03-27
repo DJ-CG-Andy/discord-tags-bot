@@ -122,6 +122,7 @@ def display_emoji(emoji_input: str) -> str:
     - 標準 emoji：返回 emoji 本身
     - ID：返回圖片連結（使用 Discord 圖片 URL）
     - 完整格式：返回圖片連結
+    - 圖片連結：返回圖片連結本身
     """
     # 如果是標準 emoji，直接返回
     if len(emoji_input) <= 4:
@@ -134,5 +135,30 @@ def display_emoji(emoji_input: str) -> str:
     if emoji_input.isdigit() or (emoji_input.startswith("<:") and emoji_input.endswith(">")):
         return image_url
     
+    # 如果已經是圖片連結，直接返回
+    if emoji_input.startswith("http"):
+        return emoji_input
+    
     # 其他情況，直接返回
     return emoji_input
+
+
+def set_embed_emoji(embed: discord.Embed, emoji_input: str):
+    """
+    在 embed 中設置 emoji（如果是圖片連結，設置為 thumbnail）
+    
+    - 標準 emoji：不做任何事
+    - 圖片連結：設置為 embed 的 thumbnail
+    """
+    # 檢查是否為圖片連結
+    if emoji_input.startswith("http"):
+        # 設置為縮略圖
+        embed.set_thumbnail(emoji_input)
+    # 檢查是否為 ID（需要轉換為圖片連結）
+    elif emoji_input.isdigit():
+        image_url = emoji_to_image_url(emoji_input)
+        embed.set_thumbnail(image_url)
+    # 檢查是否為完整格式（需要轉換為圖片連結）
+    elif emoji_input.startswith("<:") and emoji_input.endswith(">"):
+        image_url = emoji_to_image_url(emoji_input)
+        embed.set_thumbnail(image_url)

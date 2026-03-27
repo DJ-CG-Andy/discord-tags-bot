@@ -12,6 +12,7 @@ class Tag:
     category: str
     emoji: str
     description: str
+    image_url: str
     created_at: str
     color: int
 
@@ -48,6 +49,7 @@ class Database:
                     category TEXT NOT NULL,
                     emoji TEXT DEFAULT '🏷️',
                     description TEXT,
+                    image_url TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     color INTEGER DEFAULT 5814783
                 )
@@ -95,14 +97,14 @@ class Database:
             await db.commit()
     
     async def create_tag(self, name: str, category: str, emoji: str = '🏷️',
-                        description: str = "", color: int = 5814783) -> int:
+                        description: str = "", image_url: str = "", color: int = 5814783) -> int:
         """創建新標籤"""
         async with aiosqlite.connect(self.db_path) as db:
             try:
                 cursor = await db.execute(
-                    'INSERT INTO tags (name, category, emoji, description, color) '
-                    'VALUES (?, ?, ?, ?, ?)',
-                    (name, category, emoji, description, color)
+                    'INSERT INTO tags (name, category, emoji, description, image_url, color) '
+                    'VALUES (?, ?, ?, ?, ?, ?)',
+                    (name, category, emoji, description, image_url, color)
                 )
                 await db.commit()
                 return cursor.lastrowid

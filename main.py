@@ -12,7 +12,7 @@ from database import Database
 from tag_manager import TagManager
 from message_handler import MessageHandler
 from history_processor import HistoryProcessor
-from emoji_utils import compare_emoji, normalize_emoji, is_custom_emoji, display_emoji
+from emoji_utils import compare_emoji, normalize_emoji, is_custom_emoji, display_emoji, set_embed_emoji
 
 # 加載環境變量
 load_dotenv()
@@ -330,12 +330,14 @@ class AddTagModal(Modal, title='新增標籤'):
         style=discord.TextStyle.short
     )
     description = TextInput(label='說明/備註', placeholder='例如：重要知識點（可不填寫）', required=False, style=discord.TextStyle.paragraph)
+    image_url = TextInput(label='圖片連結', placeholder='可選：輸入圖片連結以顯示自定義emoji', required=False, max_length=200, style=discord.TextStyle.short)
     
     async def on_submit(self, interaction: discord.Interaction):
         """提交新增標籤"""
         tag_name = self.name.value.strip()
         tag_emoji = self.emoji.value.strip()
         tag_description = self.description.value.strip()
+        tag_image_url = self.image_url.value.strip()
         
         # 標準化 emoji（如果是完整格式，提取 ID）
         normalized_emoji = normalize_emoji(tag_emoji)
@@ -352,8 +354,8 @@ class AddTagModal(Modal, title='新增標籤'):
                 await interaction.response.send_message(f"❌ Emoji `{tag_emoji}` 已經被使用！")
                 return
         
-        # 創建標籤（使用標準化後的 emoji）
-        success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description)
+        # 創建標籤（使用標準化後的 emoji 和圖片連結）
+        success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description, tag_image_url)
         
         if success:
             # 使用 display_emoji 來顯示 emoji 或圖片連結
@@ -364,10 +366,17 @@ class AddTagModal(Modal, title='新增標籤'):
                 description=f"新標籤 `{tag_name}` 已添加",
                 color=discord.Color.green()
             )
+            
+            # 如果有圖片連結，設置為縮略圖
+            if tag_image_url:
+                embed.set_thumbnail(tag_image_url)
+            
             embed.add_field(name="名稱", value=tag_name, inline=True)
             embed.add_field(name="Emoji", value=emoji_display, inline=True)
             if tag_description:
                 embed.add_field(name="說明", value=tag_description, inline=False)
+            if tag_image_url:
+                embed.add_field(name="圖片", value=f"[查看圖片]({tag_image_url})", inline=False)
             embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 `{emoji_display}` emoji，就會自動加入此標籤！", inline=False)
             
             await interaction.response.send_message(embed=embed)

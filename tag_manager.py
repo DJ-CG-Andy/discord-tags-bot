@@ -77,15 +77,14 @@ class TagManager:
         # 不做任何事情，讓用戶自己創建標籤
         pass
     
-    async def create_custom_tag(self, name: str, category: str, 
-                               emoji: str = "🏷️", description: str = "") -> bool:
-        """創建自定義標籤"""
-        colors = self.config.get("tag_colors", {})
-        color = colors.get(category, 5814783)
-        
-        tag_id = await self.db.create_tag(name, category, emoji, description, color)
-        return tag_id is not None
-    
+    async def create_custom_tag(self, name: str, category: str,
+                                   emoji: str = "🏷️", description: str = "", image_url: str = "") -> bool:
+            """創建自定義標籤"""
+            colors = self.config.get("tag_colors", {})
+            color = colors.get(category, 5814783)
+            
+            tag_id = await self.db.create_tag(name, category, emoji, description, image_url, color)
+            return tag_id is not None    
     async def get_available_tags(self, category: str = None) -> List[Tag]:
         """獲取可用標籤"""
         if category:
