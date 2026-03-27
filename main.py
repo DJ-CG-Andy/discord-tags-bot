@@ -12,6 +12,7 @@ from database import Database
 from tag_manager import TagManager
 from message_handler import MessageHandler
 from history_processor import HistoryProcessor
+from emoji_utils import compare_emoji, normalize_emoji, is_custom_emoji
 
 # 加載環境變量
 load_dotenv()
@@ -65,7 +66,8 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         message = await channel.fetch_message(payload.message_id)
         
         # 檢查這個 emoji 是否對應一個標籤
-        emoji_str = str(payload.emoji)
+        # 使用 emoji_utils 比較標籤 emoji 和反應 emoji
+        # 支援：標準 emoji、自定義 emoji ID、完整格式
         
         # 獲取這個消息的所有標籤
         existing_tags = await db.get_message_tags(message.id)
@@ -74,7 +76,8 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         # 查找對應的標籤
         tags = await tag_manager.get_available_tags()
         for tag in tags:
-            if tag.emoji == emoji_str:
+            # 使用 compare_emoji 函數進行比較
+            if compare_emoji(tag.emoji, payload.emoji):
                 # 檢查是否已經有這個標籤
                 if tag.id in existing_tag_ids:
                     return  # 已經有這個標籤，跳過
@@ -94,13 +97,15 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 
                 if success:
                     # 發送確認訊息
+                    # 使用 payload.emoji 來顯示，因為它可能有更好的格式
+                    display_emoji = str(payload.emoji)
                     embed = discord.Embed(
-                        title=f"{tag.emoji} 自動添加標籤",
+                        title=f"{display_emoji} 自動添加標籤",
                         description=f"訊息已自動添加標籤 `{tag.name}`",
                         color=discord.Color.green(),
                         timestamp=datetime.now()
                     )
-                    embed.add_field(name="標籤", value=f"{tag.emoji} {tag.name}", inline=True)
+                    embed.add_field(name="標籤", value=f"{display_emoji} {tag.name}", inline=True)
                     if tag.description:
                         embed.add_field(name="說明", value=tag.description, inline=True)
                     embed.add_field(name="操作者", value=f"<@{payload.user_id}>", inline=True)
@@ -250,7 +255,7 @@ class AddTagModal(Modal, title='新增標籤'):
     name = TextInput(label='標籤的名字', placeholder='例如：重要', required=True)
     emoji = TextInput(
         label='象徵標籤的emoji', 
-        placeholder='例如：🏷️ 或 <:name:id>', 
+        placeholder='請先複製表情符號或表情符號的ID', 
         required=True, 
         max_length=50,
         style=discord.TextStyle.short
@@ -263,20 +268,23 @@ class AddTagModal(Modal, title='新增標籤'):
         tag_emoji = self.emoji.value.strip()
         tag_description = self.description.value.strip()
         
+        # 標準化 emoji（如果是完整格式，提取 ID）
+        normalized_emoji = normalize_emoji(tag_emoji)
+        
         # 驗證 emoji
-        if len(tag_emoji) == 0:
+        if len(normalized_emoji) == 0:
             await interaction.response.send_message("❌ Emoji 不能為空！", ephemeral=True)
             return
         
-        # 檢查 emoji 是否已存在
+        # 檢查 emoji 是否已存在（使用標準化後的 emoji 進行比較）
         tags = await tag_manager.get_available_tags()
         for tag in tags:
-            if tag.emoji == tag_emoji:
+            if normalize_emoji(tag.emoji) == normalized_emoji:
                 await interaction.response.send_message(f"❌ Emoji `{tag_emoji}` 已經被使用！", ephemeral=True)
                 return
         
-        # 創建標籤
-        success = await tag_manager.create_custom_tag(tag_name, "custom", tag_emoji, tag_description)
+        # 創建標籤（使用標準化後的 emoji）
+        success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description)
         
         if success:
             embed = discord.Embed(
@@ -288,7 +296,7 @@ class AddTagModal(Modal, title='新增標籤'):
             embed.add_field(name="Emoji", value=tag_emoji, inline=True)
             if tag_description:
                 embed.add_field(name="說明", value=tag_description, inline=False)
-            embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 {tag_emoji} emoji，就會自動加入此標籤！", inline=False)
+            embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 `{tag_emoji}` emoji，就會自動加入此標籤！", inline=False)
             
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
@@ -321,11 +329,19 @@ class SearchTagModal(Modal, title='搜索標籤'):
         else:
             limit = 10
         
-        # 搜索標籤
+        # 標準化輸入
+        normalized_input = normalize_emoji(tag_name_input)
+        
+        # 搜索標籤（支援標籤名稱、emoji 或 emoji ID）
         tags = await tag_manager.get_available_tags()
         found_tag = None
         for tag in tags:
-            if tag.name.lower() == tag_name_input.lower() or tag.emoji == tag_name_input:
+            # 檢查標籤名稱
+            if tag.name.lower() == tag_name_input.lower():
+                found_tag = tag
+                break
+            # 檢查 emoji（標準化後比較）
+            if normalize_emoji(tag.emoji) == normalized_input:
                 found_tag = tag
                 break
         
@@ -434,7 +450,7 @@ class ImportHistoryModal(Modal, title='導入歷史訊息'):
     
     emoji = TextInput(
         label='導入訊息的emoji', 
-        placeholder='例如：🏷️ 或 <:name:id>', 
+        placeholder='請先複製表情符號或表情符號的ID', 
         required=True, 
         max_length=50,
         style=discord.TextStyle.short
@@ -446,16 +462,19 @@ class ImportHistoryModal(Modal, title='導入歷史訊息'):
         emoji_input = self.emoji.value.strip()
         channel_name_input = self.channel_name.value.strip()
         
+        # 標準化 emoji 輸入
+        normalized_emoji = normalize_emoji(emoji_input)
+        
         # 驗證 emoji
-        if len(emoji_input) == 0:
+        if len(normalized_emoji) == 0:
             await interaction.response.send_message("❌ Emoji 不能為空！", ephemeral=True)
             return
         
-        # 查找對應的標籤
+        # 查找對應的標籤（使用標準化後的 emoji 進行比較）
         tags = await tag_manager.get_available_tags()
         found_tag = None
         for tag in tags:
-            if tag.emoji == emoji_input:
+            if normalize_emoji(tag.emoji) == normalized_emoji:
                 found_tag = tag
                 break
         
@@ -486,7 +505,7 @@ class DeleteTagModal(Modal, title='刪除標籤'):
     
     emoji = TextInput(
         label='要刪除標籤的emoji', 
-        placeholder='例如：🏷️ 或 <:name:id>', 
+        placeholder='請先複製表情符號或表情符號的ID', 
         required=True, 
         max_length=50,
         style=discord.TextStyle.short
@@ -496,11 +515,14 @@ class DeleteTagModal(Modal, title='刪除標籤'):
         """提交刪除標籤"""
         emoji_input = self.emoji.value.strip()
         
-        # 查找對應的標籤
+        # 標準化 emoji 輸入
+        normalized_emoji = normalize_emoji(emoji_input)
+        
+        # 查找對應的標籤（使用標準化後的 emoji 進行比較）
         tags = await tag_manager.get_available_tags()
         found_tag = None
         for tag in tags:
-            if tag.emoji == emoji_input:
+            if normalize_emoji(tag.emoji) == normalized_emoji:
                 found_tag = tag
                 break
         

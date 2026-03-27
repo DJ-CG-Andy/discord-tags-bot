@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 import asyncio
 from database import Database
 from tag_manager import TagManager
+from emoji_utils import compare_emoji, normalize_emoji
 
 class HistoryProcessor:
     def __init__(self, bot: commands.Bot, db: Database, tag_manager: TagManager):
@@ -345,7 +346,8 @@ class HistoryProcessor:
                 # 檢查訊息是否有這個 emoji 反應
                 has_emoji = False
                 for reaction in message.reactions:
-                    if str(reaction.emoji) == tag.emoji:
+                    # 使用 compare_emoji 函數進行比較
+                    if compare_emoji(tag.emoji, reaction.emoji):
                         has_emoji = True
                         break
 
