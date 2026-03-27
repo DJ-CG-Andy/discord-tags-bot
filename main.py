@@ -248,7 +248,13 @@ class AddTagModal(Modal, title='新增標籤'):
     """新增標籤的模態框"""
     
     name = TextInput(label='標籤的名字', placeholder='例如：重要', required=True)
-    emoji = TextInput(label='象徵標籤的emoji', placeholder='例如：🏷️', required=True, max_length=10)
+    emoji = TextInput(
+        label='象徵標籤的emoji', 
+        placeholder='例如：🏷️ 或 <:name:id>', 
+        required=True, 
+        max_length=50,
+        style=discord.TextStyle.short
+    )
     description = TextInput(label='說明/備註', placeholder='例如：重要知識點（可不填寫）', required=False, style=discord.TextStyle.paragraph)
     
     async def on_submit(self, interaction: discord.Interaction):
@@ -426,7 +432,13 @@ class AdvancedFeaturesView(View):
 class ImportHistoryModal(Modal, title='導入歷史訊息'):
     """導入歷史訊息的模態框"""
     
-    emoji = TextInput(label='導入訊息的emoji', placeholder='例如：🏷️', required=True, max_length=10)
+    emoji = TextInput(
+        label='導入訊息的emoji', 
+        placeholder='例如：🏷️ 或 <:name:id>', 
+        required=True, 
+        max_length=50,
+        style=discord.TextStyle.short
+    )
     channel_name = TextInput(label='頻道名稱', placeholder='例如：general', required=True)
     
     async def on_submit(self, interaction: discord.Interaction):
@@ -472,7 +484,13 @@ class ImportHistoryModal(Modal, title='導入歷史訊息'):
 class DeleteTagModal(Modal, title='刪除標籤'):
     """刪除標籤的模態框"""
     
-    emoji = TextInput(label='要刪除標籤的emoji', placeholder='例如：🏷️', required=True, max_length=10)
+    emoji = TextInput(
+        label='要刪除標籤的emoji', 
+        placeholder='例如：🏷️ 或 <:name:id>', 
+        required=True, 
+        max_length=50,
+        style=discord.TextStyle.short
+    )
     
     async def on_submit(self, interaction: discord.Interaction):
         """提交刪除標籤"""
