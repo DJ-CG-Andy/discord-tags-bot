@@ -73,17 +73,9 @@ class TagManager:
         return default_tags
     
     async def initialize_tags(self):
-        """初始化默認標籤"""
-        for tag_config in self.default_tags:
-            existing_tag = await self.db.get_tag_by_name(tag_config.name)
-            if not existing_tag:
-                await self.db.create_tag(
-                    name=tag_config.name,
-                    category=tag_config.category,
-                    emoji=tag_config.emoji,
-                    description=tag_config.description,
-                    color=tag_config.color
-                )
+        """不初始化默認標籤 - 用戶自行創建標籤"""
+        # 不做任何事情，讓用戶自己創建標籤
+        pass
     
     async def create_custom_tag(self, name: str, category: str, 
                                emoji: str = "🏷️", description: str = "") -> bool:

@@ -326,3 +326,88 @@ class HistoryProcessor:
         bar = "█" * filled + "░" * (bar_length - filled)
 
         await self._send(ctx_or_interaction, f"📊 進度: [{bar}] {progress}% ({current}/{total})")
+    
+    async def import_history_by_emoji(self, interaction: discord.Interaction, channel: discord.TextChannel, tag):
+        """通過 emoji 導入歷史訊息"""
+        try:
+            # 获取作者 ID
+            author_id = interaction.user.id
+
+            await interaction.followup.send(f"🔄 正在搜索 `{channel.name}` 頻道中包含 {tag.emoji} emoji 的訊息...")
+
+            # 獲取訊息
+            messages = []
+            async for message in channel.history(limit=None):
+                # 跳過系統訊息和機器人訊息
+                if message.author.bot or message.type != discord.MessageType.default:
+                    continue
+
+                # 檢查訊息是否有這個 emoji 反應
+                has_emoji = False
+                for reaction in message.reactions:
+                    if str(reaction.emoji) == tag.emoji:
+                        has_emoji = True
+                        break
+
+                if has_emoji:
+                    messages.append(message)
+
+            if not messages:
+                await interaction.followup.send(f"❌ 沒有找到包含 {tag.emoji} emoji 的訊息。")
+                return
+
+            # 處理訊息
+            success_count = 0
+            skip_count = 0
+            error_count = 0
+
+            for message in messages:
+                try:
+                    # 檢查訊息是否已有該標籤
+                    existing_tags = await self.db.get_message_tags(str(message.id))
+                    if any(mt.tag_id == tag.id for mt in existing_tags):
+                        skip_count += 1
+                        continue
+
+                    # 添加標籤
+                    created_at = message.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    success = await self.db.tag_message(
+                        message_id=str(message.id),
+                        channel_id=str(message.channel.id),
+                        guild_id=str(message.guild.id),
+                        tag_id=tag.id,
+                        tagged_by=str(author_id),
+                        message_content=message.content,
+                        author_id=str(message.author.id),
+                        created_at=created_at
+                    )
+
+                    if success:
+                        success_count += 1
+
+                    # 避免觸發速率限制
+                    await asyncio.sleep(0.5)
+
+                except Exception as e:
+                    error_count += 1
+                    print(f"處理訊息 {message.id} 時出錯: {e}")
+
+            # 發送結果
+            embed = discord.Embed(
+                title=f"{tag.emoji} 歷史訊息導入完成",
+                description=f"頻道 `{channel.name}` 的導入結果",
+                color=discord.Color.green(),
+                timestamp=datetime.now()
+            )
+
+            embed.add_field(name="成功添加", value=success_count, inline=True)
+            embed.add_field(name="已跳過", value=skip_count, inline=True)
+            embed.add_field(name="錯誤", value=error_count, inline=True)
+            embed.add_field(name="總計", value=len(messages), inline=True)
+            embed.add_field(name="Emoji", value=tag.emoji, inline=True)
+            embed.add_field(name="標籤", value=tag.name, inline=True)
+
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            await interaction.followup.send(f"❌ 導入歷史訊息時發生錯誤: {str(e)}")
