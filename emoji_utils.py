@@ -1,5 +1,7 @@
 """Emoji 工具函數"""
 
+import discord
+
 def compare_emoji(tag_emoji: str, reaction_emoji) -> bool:
     """
     比較標籤的 emoji 和反應的 emoji
