@@ -153,12 +153,12 @@ def set_embed_emoji(embed: discord.Embed, emoji_input: str):
     # 檢查是否為圖片連結
     if emoji_input.startswith("http"):
         # 設置為縮略圖
-        embed.set_thumbnail(emoji_input)
+        embed.set_thumbnail(url=emoji_input)
     # 檢查是否為 ID（需要轉換為圖片連結）
     elif emoji_input.isdigit():
         image_url = emoji_to_image_url(emoji_input)
-        embed.set_thumbnail(image_url)
+        embed.set_thumbnail(url=image_url)
     # 檢查是否為完整格式（需要轉換為圖片連結）
     elif emoji_input.startswith("<:") and emoji_input.endswith(">"):
         image_url = emoji_to_image_url(emoji_input)
-        embed.set_thumbnail(image_url)
+        embed.set_thumbnail(url=image_url)

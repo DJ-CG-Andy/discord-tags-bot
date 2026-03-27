@@ -252,7 +252,7 @@ class MainMenuView(View):
                     color=discord.Color.orange()
                 )
                 embed.add_field(name="💡 提示", value="使用 `!menu` 點擊「🏷️ 新增標籤」來創建新標籤", inline=False)
-                await interaction.response.send_message(embed=embed)
+                await interaction.response.edit_message(embed=embed)
                 return
             
             # 分組顯示標籤
@@ -273,11 +273,14 @@ class MainMenuView(View):
             
             # 添加返回按鈕
             view = BackToMenuView()
-            await interaction.response.send_message(embed=embed, view=view)
+            await interaction.response.edit_message(embed=embed, view=view)
             
         except Exception as e:
             print(f"查看標籤錯誤: {e}")
-            await interaction.response.send_message("❌ 查看標籤時發生錯誤")
+            try:
+                await interaction.response.send_message("❌ 查看標籤時發生錯誤")
+            except:
+                await interaction.followup.send("❌ 查看標籤時發生錯誤")
     
     @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -369,7 +372,7 @@ class AddTagModal(Modal, title='新增標籤'):
             
             # 如果有圖片連結，設置為縮略圖
             if tag_image_url:
-                embed.set_thumbnail(tag_image_url)
+                embed.set_thumbnail(url=tag_image_url)
             
             embed.add_field(name="名稱", value=tag_name, inline=True)
             embed.add_field(name="Emoji", value=emoji_display, inline=True)

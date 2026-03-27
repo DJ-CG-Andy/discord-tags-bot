@@ -152,6 +152,7 @@ class TagManager:
             for stat in tag_stats[:5]:
                 top_tags.append({
                     'name': stat['tag'].name,
+                    'emoji': stat['tag'].emoji,
                     'count': stat['usage_count']
                 })
             
