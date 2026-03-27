@@ -151,6 +151,17 @@ async def on_ready():
     # 設置初始化標誌
     global _initialized
     _initialized = True
+    
+    # 清除舊的斜線命令
+    try:
+        print("🔄 清除舊的斜線命令...")
+        synced_commands = await bot.tree.sync()
+        if synced_commands:
+            print(f"✅ 已清除 {len(synced_commands)} 個斜線命令")
+        else:
+            print("✅ 沒有舊的斜線命令需要清除")
+    except Exception as e:
+        print(f"⚠️ 清除斜線命令時發生錯誤: {e}")
 
 # ========== 主菜單 ==========
 
