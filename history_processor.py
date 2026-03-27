@@ -103,7 +103,7 @@ class HistoryProcessor:
                         success_count += 1
 
                     # 避免觸發速率限制
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1)  # 增加延遲以減少速率限制
 
                 except Exception as e:
                     error_count += 1
@@ -199,7 +199,7 @@ class HistoryProcessor:
                         if success:
                             total_success += 1
 
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(1)  # 增加延遲以減少速率限制
 
                     except Exception as e:
                         total_error += 1
@@ -289,7 +289,7 @@ class HistoryProcessor:
                     if success:
                         success_count += 1
 
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1)  # 增加延遲以減少速率限制
 
                 except Exception as e:
                     error_count += 1
@@ -388,7 +388,7 @@ class HistoryProcessor:
                         success_count += 1
 
                     # 避免觸發速率限制
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1)  # 增加延遲以減少速率限制
 
                 except Exception as e:
                     error_count += 1

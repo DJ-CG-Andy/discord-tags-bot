@@ -88,3 +88,51 @@ def is_custom_emoji(emoji_input: str) -> bool:
     
     # 其他情況，假設是標準 emoji
     return False
+
+
+def emoji_to_image_url(emoji_input: str, size: int = 40) -> str:
+    """
+    將 emoji 或 ID 轉換為圖片連結
+    
+    - 標準 emoji：返回 emoji 本身
+    - ID：返回圖片連結
+    - 完整格式：返回圖片連結
+    """
+    # 如果是標準 emoji，直接返回
+    if len(emoji_input) <= 4:
+        return emoji_input
+    
+    # 如果是 ID（純數字）
+    if emoji_input.isdigit():
+        return f"https://cdn.discordapp.com/emojis/{emoji_input}.webp?size={size}"
+    
+    # 如果是完整格式，提取 ID 並返回圖片連結
+    if emoji_input.startswith("<:") and emoji_input.endswith(">"):
+        emoji_id = emoji_input.split(":")[-1].rstrip(">")
+        return f"https://cdn.discordapp.com/emojis/{emoji_id}.webp?size={size}"
+    
+    # 其他情況，直接返回
+    return emoji_input
+
+
+def display_emoji(emoji_input: str) -> str:
+    """
+    用於顯示 emoji（如果是 ID，使用圖片連結）
+    
+    - 標準 emoji：返回 emoji 本身
+    - ID：返回圖片連結（使用 Discord 圖片 URL）
+    - 完整格式：返回圖片連結
+    """
+    # 如果是標準 emoji，直接返回
+    if len(emoji_input) <= 4:
+        return emoji_input
+    
+    # 如果是 ID 或完整格式，返回圖片連結
+    image_url = emoji_to_image_url(emoji_input)
+    
+    # 如果是 ID 或完整格式，返回圖片連結
+    if emoji_input.isdigit() or (emoji_input.startswith("<:") and emoji_input.endswith(">")):
+        return image_url
+    
+    # 其他情況，直接返回
+    return emoji_input

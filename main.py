@@ -12,7 +12,7 @@ from database import Database
 from tag_manager import TagManager
 from message_handler import MessageHandler
 from history_processor import HistoryProcessor
-from emoji_utils import compare_emoji, normalize_emoji, is_custom_emoji
+from emoji_utils import compare_emoji, normalize_emoji, is_custom_emoji, display_emoji
 
 # 加載環境變量
 load_dotenv()
@@ -96,16 +96,15 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 )
                 
                 if success:
-                    # 發送確認訊息
-                    # 使用 payload.emoji 來顯示，因為它可能有更好的格式
-                    display_emoji = str(payload.emoji)
+                    # 使用 display_emoji 來顯示 emoji 或圖片連結
+                    emoji_display = display_emoji(tag.emoji)
                     embed = discord.Embed(
-                        title=f"{display_emoji} 自動添加標籤",
+                        title=f"{emoji_display} 自動添加標籤",
                         description=f"訊息已自動添加標籤 `{tag.name}`",
                         color=discord.Color.green(),
                         timestamp=datetime.now()
                     )
-                    embed.add_field(name="標籤", value=f"{display_emoji} {tag.name}", inline=True)
+                    embed.add_field(name="標籤", value=f"{emoji_display} {tag.name}", inline=True)
                     if tag.description:
                         embed.add_field(name="說明", value=tag.description, inline=True)
                     embed.add_field(name="操作者", value=f"<@{payload.user_id}>", inline=True)
@@ -154,15 +153,15 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
                 success = await db.untag_message(str(message.id), tag.id)
                 
                 if success:
-                    # 發送確認訊息
-                    display_emoji = str(payload.emoji)
+                    # 使用 display_emoji 來顯示 emoji 或圖片連結
+                    emoji_display = display_emoji(tag.emoji)
                     embed = discord.Embed(
-                        title=f"{display_emoji} 自動移除標籤",
+                        title=f"{emoji_display} 自動移除標籤",
                         description=f"訊息已自動移除標籤 `{tag.name}`",
                         color=discord.Color.orange(),
                         timestamp=datetime.now()
                     )
-                    embed.add_field(name="標籤", value=f"{display_emoji} {tag.name}", inline=True)
+                    embed.add_field(name="標籤", value=f"{emoji_display} {tag.name}", inline=True)
                     if tag.description:
                         embed.add_field(name="說明", value=tag.description, inline=True)
                     embed.add_field(name="操作者", value=f"<@{payload.user_id}>", inline=True)
@@ -259,7 +258,9 @@ class MainMenuView(View):
             # 分組顯示標籤
             tag_list = []
             for i, tag in enumerate(tags):
-                tag_list.append(f"{tag.emoji} **{tag.name}**")
+                # 使用 display_emoji 來顯示 emoji 或圖片連結
+                emoji_display = display_emoji(tag.emoji)
+                tag_list.append(f"{emoji_display} **{tag.name}**")
                 if tag.description:
                     tag_list[-1] += f" - {tag.description}"
             
@@ -355,16 +356,19 @@ class AddTagModal(Modal, title='新增標籤'):
         success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description)
         
         if success:
+            # 使用 display_emoji 來顯示 emoji 或圖片連結
+            emoji_display = display_emoji(normalized_emoji)
+            
             embed = discord.Embed(
                 title="✅ 標籤創建成功",
                 description=f"新標籤 `{tag_name}` 已添加",
                 color=discord.Color.green()
             )
             embed.add_field(name="名稱", value=tag_name, inline=True)
-            embed.add_field(name="Emoji", value=tag_emoji, inline=True)
+            embed.add_field(name="Emoji", value=emoji_display, inline=True)
             if tag_description:
                 embed.add_field(name="說明", value=tag_description, inline=False)
-            embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 `{tag_emoji}` emoji，就會自動加入此標籤！", inline=False)
+            embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 `{emoji_display}` emoji，就會自動加入此標籤！", inline=False)
             
             await interaction.response.send_message(embed=embed)
         else:
@@ -421,18 +425,20 @@ class SearchTagModal(Modal, title='搜索標籤'):
         message_tags = await db.search_by_tag(found_tag.name, limit=limit)
         
         if not message_tags:
+            emoji_display = display_emoji(found_tag.emoji)
             embed = discord.Embed(
-                title=f"🔍 搜索結果: {found_tag.emoji} {found_tag.name}",
+                title=f"🔍 搜索結果: {emoji_display} {found_tag.name}",
                 description=f"沒有找到帶有此標籤的訊息",
                 color=discord.Color.orange()
             )
-            embed.add_field(name="💡 提示", value=f"試試在訊息上添加 {found_tag.emoji} emoji 來自動加入標籤！", inline=False)
+            embed.add_field(name="💡 提示", value=f"試試在訊息上添加 {emoji_display} emoji 來自動加入標籤！", inline=False)
             await interaction.response.send_message(embed=embed)
             return
         
         # 顯示結果
+        emoji_display = display_emoji(found_tag.emoji)
         embed = discord.Embed(
-            title=f"🔍 搜索結果: {found_tag.emoji} {found_tag.name}",
+            title=f"🔍 搜索結果: {emoji_display} {found_tag.name}",
             description=f"找到 {len(message_tags)} 條訊息",
             color=discord.Color.blue()
         )
@@ -478,7 +484,7 @@ class AdvancedFeaturesView(View):
             embed.add_field(name="👥 活躍用戶", value=stats.get('active_users', 0), inline=True)
             
             if stats.get('top_tags'):
-                top_tags_str = "\n".join([f"{i+1}. {tag['emoji']} {tag['name']}: {tag['count']} 次" for i, tag in enumerate(stats['top_tags'][:5])])
+                top_tags_str = "\n".join([f"{i+1}. {display_emoji(tag['emoji'])} {tag['name']}: {tag['count']} 次" for i, tag in enumerate(stats['top_tags'][:5])])
                 embed.add_field(name="🔥 熱門標籤", value=top_tags_str, inline=False)
             
             # 添加返回按鈕
