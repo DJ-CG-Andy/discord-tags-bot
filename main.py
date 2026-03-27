@@ -8,7 +8,16 @@ import json
 from typing import Optional, List
 import uuid
 
-from database import Database
+# 根據環境變量選擇數據庫類型
+USE_D1 = os.getenv("USE_D1", "false").lower() == "true"
+
+if USE_D1:
+    from database_d1 import Database
+    print("🌐 使用 Cloudflare D1 數據庫")
+else:
+    from database import Database
+    print("💾 使用本地 SQLite 數據庫")
+
 from tag_manager import TagManager
 from message_handler import MessageHandler
 from history_processor import HistoryProcessor
@@ -37,7 +46,7 @@ bot = commands.Bot(
 )
 
 # 初始化數據庫和管理器
-db = Database(os.getenv("DATABASE_PATH", "discord_tags.db"))
+db = Database(os.getenv("DATABASE_PATH", "discord_tags.db"), use_d1=USE_D1)
 tag_manager = TagManager(db)
 message_handler = None
 history_processor = None
