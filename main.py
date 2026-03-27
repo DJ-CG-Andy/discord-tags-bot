@@ -558,6 +558,33 @@ if __name__ == "__main__":
         print("請創建 .env 文件並設置 DISCORD_BOT_TOKEN")
         exit(1)
     
+    # 啟動 HTTP 服務器（為了滿足 Render 的端口檢查）
+    import http.server
+    import socketserver
+    from threading import Thread
+    
+    PORT = int(os.getenv("PORT", 8080))
+    
+    class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b"Discord Tag System Bot is running!")
+        
+        def log_message(self, format, *args):
+            # 禁用 HTTP 服務器的日誌輸出
+            pass
+    
+    # 在單獨的線程中運行 HTTP 服務器
+    def start_http_server():
+        with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
+            print(f"🌐 HTTP 服務器已啟動，監聽端口 {PORT}")
+            httpd.serve_forever()
+    
+    http_thread = Thread(target=start_http_server, daemon=True)
+    http_thread.start()
+    
     # 啟動 Bot
     print("🚀 正在啟動 Discord 標籤系統 Bot...")
     print("🤖 啟動 Discord Bot...")
