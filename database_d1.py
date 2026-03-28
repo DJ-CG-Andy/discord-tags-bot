@@ -3,21 +3,19 @@ Database module with Cloudflare D1 support
 Supports both local SQLite and Cloudflare D1
 """
 
-import sys
-import os
-
-# 設置無緩衝輸出，確保 print() 立即顯示
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
-sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', buffering=1)
-
 import aiosqlite
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
 from dataclasses import dataclass
+import os
 import aiohttp
+import sys
 
-print("🚀 開始加載 database_d1.py")
+# 設置 PYTHONUNBUFFERED 環境變量
+os.environ['PYTHONUNBUFFERED'] = '1'
+
+print("🚀 開始加載 database_d1.py", flush=True)
 
 @dataclass
 class Tag:
@@ -83,7 +81,7 @@ class Database:
         
         # 處理參數
         for param in params:
-            print(f"🔍 處理參數: {param} (類型: {type(param).__name__})")
+            print(f"🔍 處理參數: {param} (類型: {type(param).__name__})", flush=True)
             if isinstance(param, str):
                 body["params"].append({"type": "text", "value": param})
             elif isinstance(param, int):
@@ -92,24 +90,24 @@ class Database:
                 body["params"].append({"type": "null"})
             else:
                 # 其他類型，轉換為字符串
-                print(f"⚠️  未知參數類型，轉換為字符串: {param}")
+                print(f"⚠️  未知參數類型，轉換為字符串: {param}", flush=True)
                 body["params"].append({"type": "text", "value": str(param)})
         
         async with aiohttp.ClientSession() as session:
             async with session.post(self.d1_api_url, headers=headers, json=body) as response:
-                print(f"🔍 D1 API 響應狀態: {response.status}")
+                print(f"🔍 D1 API 響應狀態: {response.status}", flush=True)
                 
                 if response.status != 200:
                     error_text = await response.text()
-                    print(f"❌ D1 API 錯誤: {response.status} - {error_text}")
+                    print(f"❌ D1 API 錯誤: {response.status} - {error_text}", flush=True)
                     raise Exception(f"D1 API 錯誤: {response.status} - {error_text}")
                 
                 result = await response.json()
-                print(f"🔍 D1 返回: {result}")
+                print(f"🔍 D1 返回: {result}", flush=True)
                 
                 if not result.get("success", False):
                     errors = result.get('errors', [])
-                    print(f"❌ D1 查詢失敗: {errors}")
+                    print(f"❌ D1 查詢失敗: {errors}", flush=True)
                     raise Exception(f"D1 查詢失敗: {errors}")
                 
                 return result.get("result", [])
@@ -194,14 +192,14 @@ class Database:
                     return None
         else:
             try:
-                print(f"🔍 ===== 開創建標籤 =====")
-                print(f"🔍 準備創建標籤:")
-                print(f"   name: {name} (類型: {type(name).__name__})")
-                print(f"   category: {category} (類型: {type(category).__name__})")
-                print(f"   emoji: {emoji} (類型: {type(emoji).__name__})")
-                print(f"   description: {description} (類型: {type(description).__name__})")
-                print(f"   image_url: {image_url} (類型: {type(image_url).__name__})")
-                print(f"   color: {color} (類型: {type(color).__name__})")
+                print(f"🔍 ===== 開創建標籤 =====", flush=True)
+                print(f"🔍 準備創建標籤:", flush=True)
+                print(f"   name: {name} (類型: {type(name).__name__})", flush=True)
+                print(f"   category: {category} (類型: {type(category).__name__})", flush=True)
+                print(f"   emoji: {emoji} (類型: {type(emoji).__name__})", flush=True)
+                print(f"   description: {description} (類型: {type(description).__name__})", flush=True)
+                print(f"   image_url: {image_url} (類型: {type(image_url).__name__})", flush=True)
+                print(f"   color: {color} (類型: {type(color).__name__})", flush=True)
                 
                 # 確保所有參數都是正確的類型
                 name = str(name) if name is not None else ""
@@ -211,22 +209,22 @@ class Database:
                 image_url = str(image_url) if image_url is not None else ""
                 color = int(color) if isinstance(color, (int, str)) else 5814783
                 
-                print(f"🔍 類型轉換後的參數:")
-                print(f"   name: {name}")
-                print(f"   category: {category}")
-                print(f"   emoji: {emoji}")
-                print(f"   description: {description}")
-                print(f"   image_url: {image_url}")
-                print(f"   color: {color}")
+                print(f"🔍 類型轉換後的參數:", flush=True)
+                print(f"   name: {name}", flush=True)
+                print(f"   category: {category}", flush=True)
+                print(f"   emoji: {emoji}", flush=True)
+                print(f"   description: {description}", flush=True)
+                print(f"   image_url: {image_url}", flush=True)
+                print(f"   color: {color}", flush=True)
                 
                 # 添加超時保護
                 import asyncio
                 try:
                     sql = "INSERT INTO tags (name, category, emoji, description, image_url, color) VALUES (?, ?, ?, ?, ?, ?)"
                     result = await asyncio.wait_for(self._execute_d1(sql, (name, category, emoji, description, image_url, color)), timeout=30.0)
-                    print(f"🔍 INSERT 返回: {result}")
+                    print(f"🔍 INSERT 返回: {result}", flush=True)
                 except asyncio.TimeoutError:
-                    print("❌ D1 API 調用超時（30秒）")
+                    print("❌ D1 API 調用超時（30秒）", flush=True)
                     raise Exception("D1 API 調用超時")
                 
                 # D1 插入成功，返回新標籤的 ID

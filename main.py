@@ -1,31 +1,29 @@
 import discord
-import sys
-import os
-
-# 設置無緩衝輸出，確保 print() 立即顯示
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
-sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', buffering=1)
-
 from discord.ext import commands
 from discord.ui import Button, View, Modal, TextInput
 from datetime import datetime
 from dotenv import load_dotenv
+import os
 import json
 from typing import Optional, List
 import uuid
 import asyncio
+import sys
 
-print("🚀 開始加載 main.py")
+# 設置 PYTHONUNBUFFERED 環境變量
+os.environ['PYTHONUNBUFFERED'] = '1'
+
+print("🚀 開始加載 main.py", flush=True)
 
 # 根據環境變量選擇數據庫類型
 USE_D1 = os.getenv("USE_D1", "false").lower() == "true"
 
 if USE_D1:
     from database_d1 import Database
-    print("🌐 使用 Cloudflare D1 數據庫")
+    print("🌐 使用 Cloudflare D1 數據庫", flush=True)
 else:
     from database import Database
-    print("💾 使用本地 SQLite 數據庫")
+    print("💾 使用本地 SQLite 數據庫", flush=True)
 
 from tag_manager import TagManager
 from message_handler import MessageHandler
@@ -699,7 +697,7 @@ class AddTagModal(Modal, title='新增標籤'):
     
     async def on_submit(self, interaction: discord.Interaction):
         """提交新增標籤"""
-        print("🔍 ===== AddTagModal on_submit 被調用 =====")
+        print("🔍 ===== AddTagModal on_submit 被調用 =====", flush=True)
         
         try:
             tag_name = self.name.value.strip()
@@ -707,15 +705,15 @@ class AddTagModal(Modal, title='新增標籤'):
             tag_description = self.description.value.strip()
             tag_image_url = self.image_url.value.strip()
             
-            print(f"🔍 從 Modal 獲取的原始值:")
-            print(f"   tag_name: {tag_name} (類型: {type(tag_name).__name__})")
-            print(f"   tag_emoji: {tag_emoji} (類型: {type(tag_emoji).__name__})")
-            print(f"   tag_description: {tag_description} (類型: {type(tag_description).__name__})")
-            print(f"   tag_image_url: {tag_image_url} (類型: {type(tag_image_url).__name__})")
+            print(f"🔍 從 Modal 獲取的原始值:", flush=True)
+            print(f"   tag_name: {tag_name} (類型: {type(tag_name).__name__})", flush=True)
+            print(f"   tag_emoji: {tag_emoji} (類型: {type(tag_emoji).__name__})", flush=True)
+            print(f"   tag_description: {tag_description} (類型: {type(tag_description).__name__})", flush=True)
+            print(f"   tag_image_url: {tag_image_url} (類型: {type(tag_image_url).__name__})", flush=True)
             
             # 標準化 emoji（如果是完整格式，提取 ID）
             normalized_emoji = normalize_emoji(tag_emoji)
-            print(f"🔍 標準化後的 emoji: {normalized_emoji}")
+            print(f"🔍 標準化後的 emoji: {normalized_emoji}", flush=True)
             
             # 驗證 emoji
             if len(normalized_emoji) == 0:
@@ -730,12 +728,12 @@ class AddTagModal(Modal, title='新增標籤'):
                     return
             
             # 創建標籤（使用標準化後的 emoji 和圖片連結）
-            print(f"🔍 準備調用 create_custom_tag:")
-            print(f"   name: {tag_name}")
-            print(f"   category: custom")
-            print(f"   emoji: {normalized_emoji}")
-            print(f"   description: {tag_description}")
-            print(f"   image_url: {tag_image_url}")
+            print(f"🔍 準備調用 create_custom_tag:", flush=True)
+            print(f"   name: {tag_name}", flush=True)
+            print(f"   category: custom", flush=True)
+            print(f"   emoji: {normalized_emoji}", flush=True)
+            print(f"   description: {tag_description}", flush=True)
+            print(f"   image_url: {tag_image_url}", flush=True)
             
             success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description, tag_image_url)
             
@@ -765,17 +763,17 @@ class AddTagModal(Modal, title='新增標籤'):
             else:
                 await interaction.response.send_message("❌ 標籤創建失敗，可能已存在")
         except Exception as e:
-            print(f"❌ AddTagModal on_submit 發生錯誤: {e}")
+            print(f"❌ AddTagModal on_submit 發生錯誤: {e}", flush=True)
             import traceback
-            traceback.print_exc()
+            traceback.print_exc(flush=True)
             try:
                 await interaction.response.send_message(f"❌ 創建標籤時發生錯誤: {str(e)}")
             except:
-                print("❌ 無法發送錯誤訊息")
+                print("❌ 無法發送錯誤訊息", flush=True)
                 try:
                     await interaction.followup.send(f"❌ 創建標籤時發生錯誤: {str(e)}")
                 except:
-                    print("❌ 無法使用 followup 發送錯誤訊息")
+                    print("❌ 無法使用 followup 發送錯誤訊息", flush=True)
 
 # ========== 搜索標籤模態框 ==========
 
