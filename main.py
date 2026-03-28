@@ -58,11 +58,17 @@ bot = commands.Bot(
 bot._waiting_for_gif = None
 
 # 初始化數據庫和管理器
-db = Database(os.getenv("DATABASE_PATH", "discord_tags.db"), use_d1=USE_D1)
+if USE_D1:
+    db = Database(use_d1=True)
+else:
+    db = Database()
 tag_manager = TagManager(db)
 message_handler = None
 history_processor = None
-checkin_manager = CheckinManager(os.getenv("DATABASE_PATH", "discord_tags.db"), use_d1=USE_D1)
+if USE_D1:
+    checkin_manager = CheckinManager(use_d1=True)
+else:
+    checkin_manager = CheckinManager()
 
 # 命令鎖 - 防止重複執行
 _command_locks = {}
