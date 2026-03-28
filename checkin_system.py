@@ -301,7 +301,7 @@ class GifConfirmationView(View):
                 channel_id=str(interaction.channel.id),
                 guild_id=self.guild_id,
                 checkin_time=self.checkin_time,
-                timeout_seconds=300  # 5分鐘過期
+                timeout_seconds=120  # 2分鐘過期
             )
             
             if success:

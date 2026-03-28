@@ -601,7 +601,7 @@ class MainMenuView(View):
             embed.add_field(name="總數", value=f"共有 {len(tags)} 個標籤", inline=True)
             
             # 添加返回按鈕
-            view = BackToMenuView()
+            view = BackToMenuView(guild_id=self.guild_id, channel_id=self.channel_id)
             print(f"🔍 準備編輯訊息...")
             await interaction.response.edit_message(embed=embed, view=view)
             print("🔍 ===== 查看標籤完成 =====")
@@ -626,7 +626,7 @@ class MainMenuView(View):
     @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示進階功能菜單"""
-        view = AdvancedFeaturesView()
+        view = AdvancedFeaturesView(guild_id=self.guild_id, channel_id=self.channel_id)
         embed = discord.Embed(
             title="📥 進階功能",
             description="選擇一個操作：",
@@ -641,13 +641,27 @@ class MainMenuView(View):
 class BackToMenuView(View):
     """返回主菜單按鈕"""
     
-    def __init__(self):
+    def __init__(self, guild_id: Optional[str] = None, channel_id: Optional[str] = None):
         super().__init__(timeout=None)
+        self.guild_id = guild_id
+        self.channel_id = channel_id
     
     @discord.ui.button(label="🔙 返回主菜單", style=discord.ButtonStyle.secondary)
     async def back_to_menu(self, interaction: discord.Interaction, button: discord.ui.Button):
         """返回主菜單"""
-        view = MainMenuView()
+        guild_id = str(interaction.guild.id)
+        channel_id = str(interaction.channel.id)
+        
+        # 檢查是否在簽到頻道
+        config = await checkin_manager.get_config(guild_id)
+        is_checkin_channel = config and config['channel_id'] == channel_id
+        
+        # 根據情況選擇 View 和 embed
+        if is_checkin_channel:
+            view = MainMenuViewWithCheckin(guild_id=guild_id, channel_id=channel_id)
+        else:
+            view = MainMenuView(guild_id=guild_id, channel_id=channel_id)
+        
         embed = discord.Embed(
             title="🎮 Discord 標籤系統",
             description="選擇一個操作：",
@@ -656,6 +670,10 @@ class BackToMenuView(View):
         embed.add_field(name="🏷️ 新增標籤", value="添加新的標籤", inline=False)
         embed.add_field(name="🔍 搜索標籤", value="搜索帶有標籤的消息", inline=False)
         embed.add_field(name="📋 查看標籤", value="查看所有可用標籤", inline=False)
+        
+        if is_checkin_channel:
+            embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
+        
         embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
         
         await interaction.response.edit_message(embed=embed, view=view)
@@ -722,7 +740,7 @@ class MainMenuViewWithCheckin(View):
             embed.add_field(name="總數", value=f"共有 {len(tags)} 個標籤", inline=True)
             
             # 添加返回按鈕
-            view = BackToMenuView()
+            view = BackToMenuView(guild_id=self.guild_id, channel_id=self.channel_id)
             print(f"🔍 準備編輯訊息...")
             await interaction.response.edit_message(embed=embed, view=view)
             print("🔍 ===== 查看標籤完成 =====")
@@ -756,7 +774,7 @@ class MainMenuViewWithCheckin(View):
     @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features_with_checkin")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示進階功能菜單"""
-        view = AdvancedFeaturesView()
+        view = AdvancedFeaturesView(guild_id=self.guild_id, channel_id=self.channel_id)
         embed = discord.Embed(
             title="📥 進階功能",
             description="選擇一個操作：",
@@ -942,7 +960,7 @@ class SearchTagModal(Modal, title='搜索標籤'):
             )
         
         # 添加返回按鈕
-        view = BackToMenuView()
+        view = BackToMenuView(guild_id=str(interaction.guild.id), channel_id=str(interaction.channel.id))
         await interaction.response.send_message(embed=embed, view=view)
 
 # ========== 進階功能菜單 ==========
@@ -950,8 +968,10 @@ class SearchTagModal(Modal, title='搜索標籤'):
 class AdvancedFeaturesView(View):
     """進階功能菜單"""
     
-    def __init__(self):
+    def __init__(self, guild_id: Optional[str] = None, channel_id: Optional[str] = None):
         super().__init__(timeout=None)
+        self.guild_id = guild_id
+        self.channel_id = channel_id
     
     @discord.ui.button(label="📥 導入歷史", style=discord.ButtonStyle.primary, emoji="📥")
     async def import_history(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -996,7 +1016,7 @@ class AdvancedFeaturesView(View):
                 embed.add_field(name="🔥 熱門標籤", value=top_tags_str, inline=False)
             
             # 添加返回按鈕
-            view = BackToMenuView()
+            view = BackToMenuView(guild_id=self.guild_id, channel_id=self.channel_id)
             await interaction.response.edit_message(embed=embed, view=view)
             
         except Exception as e:

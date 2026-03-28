@@ -126,7 +126,7 @@ class CheckinManager:
                 
                 await db.commit()
     
-    async def set_gif_change_request(self, user_id: str, channel_id: str, guild_id: str, checkin_time: str = "00:00", timeout_seconds: int = 300) -> bool:
+    async def set_gif_change_request(self, user_id: str, channel_id: str, guild_id: str, checkin_time: str = "00:00", timeout_seconds: int = 120) -> bool:
         """設置 GIF 更換請求（使用資料庫存儲，避免多實例問題）"""
         from datetime import datetime, timedelta
         
