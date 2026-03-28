@@ -170,21 +170,23 @@ class CheckinManager:
                 ORDER BY id DESC LIMIT 1
             ''', [user_id, channel_id])
             
-            if result and result[0].get("results"):
-                row = result[0]["results"][0]
-                request_data = {
-                    "user_id": row.get("user_id"),
-                    "channel_id": row.get("channel_id"),
-                    "guild_id": row.get("guild_id"),
-                    "checkin_time": row.get("checkin_time")
-                }
-                
-                # 刪除請求
-                await self._execute_d1('''
-                    DELETE FROM gif_change_requests WHERE id = ?
-                ''', [row.get("id")])
-                
-                return request_data
+            if result and result.get("success") and result.get("result"):
+                results = result["result"][0].get("results", [])
+                if results:
+                    row = results[0]
+                    request_data = {
+                        "user_id": row.get("user_id"),
+                        "channel_id": row.get("channel_id"),
+                        "guild_id": row.get("guild_id"),
+                        "checkin_time": row.get("checkin_time")
+                    }
+                    
+                    # 刪除請求
+                    await self._execute_d1('''
+                        DELETE FROM gif_change_requests WHERE id = ?
+                    ''', [row.get("id")])
+                    
+                    return request_data
             return None
         else:
             async with aiosqlite.connect(self.db_path) as db:
@@ -282,18 +284,20 @@ class CheckinManager:
                 SELECT * FROM checkin_config WHERE guild_id = ?
             ''', [guild_id])
             
-            if result and len(result) > 0 and result[0].get("results"):
-                row = result[0]["results"][0]
-                # 確保返回的字典有所有必需的字段
-                return {
-                    "id": row.get("id"),
-                    "guild_id": row.get("guild_id") or guild_id,
-                    "channel_id": row.get("channel_id"),
-                    "checkin_time": row.get("checkin_time") or "00:00",
-                    "gif_url": row.get("gif_url") or "",
-                    "created_at": row.get("created_at"),
-                    "updated_at": row.get("updated_at")
-                }
+            if result and result.get("success") and result.get("result"):
+                results = result["result"][0].get("results", [])
+                if results:
+                    row = results[0]
+                    # 確保返回的字典有所有必需的字段
+                    return {
+                        "id": row.get("id"),
+                        "guild_id": row.get("guild_id") or guild_id,
+                        "channel_id": row.get("channel_id"),
+                        "checkin_time": row.get("checkin_time") or "00:00",
+                        "gif_url": row.get("gif_url") or "",
+                        "created_at": row.get("created_at"),
+                        "updated_at": row.get("updated_at")
+                    }
             return None
         else:
             async with aiosqlite.connect(self.db_path) as db:
@@ -328,21 +332,28 @@ class CheckinManager:
                 SELECT * FROM checkin_records WHERE user_id = ? AND guild_id = ? AND checkin_date = ?
             ''', [user_id, guild_id, today])
             
-            if result and result[0].get("results"):
-                # 今天已經簽到過
-                total_count = await self.get_total_checkins(user_id, guild_id)
-                streak = await self.get_streak(user_id, guild_id)
-                return (False, total_count, streak)
+            if result and result.get("success") and result.get("result"):
+                results = result["result"][0].get("results", [])
+                if results:
+                    # 今天已經簽到過
+                    total_count = await self.get_total_checkins(user_id, guild_id)
+                    streak = await self.get_streak(user_id, guild_id)
+                    return (False, total_count, streak)
             
             # 檢查昨天是否簽到
             result = await self._execute_d1('''
                 SELECT * FROM checkin_records WHERE user_id = ? AND guild_id = ? AND checkin_date = ?
             ''', [user_id, guild_id, yesterday])
             
-            if result and result[0].get("results"):
-                # 昨天簽到了，連續天數 +1
-                yesterday_record = result[0]["results"][0]
-                streak = yesterday_record.get("streak_days", 0) + 1
+            if result and result.get("success") and result.get("result"):
+                results = result["result"][0].get("results", [])
+                if results:
+                    # 昨天簽到了，連續天數 +1
+                    yesterday_record = results[0]
+                    streak = yesterday_record.get("streak_days", 0) + 1
+                else:
+                    # 昨天沒簽到，連續天數 = 1
+                    streak = 1
             else:
                 # 昨天沒簽到，連續天數 = 1
                 streak = 1
@@ -403,9 +414,10 @@ class CheckinManager:
                 SELECT COUNT(*) as count FROM checkin_records WHERE user_id = ? AND guild_id = ?
             ''', [user_id, guild_id])
             
-            if result and result[0].get("results"):
-                row = result[0]["results"][0]
-                return row.get("count", 0)
+            if result and result.get("success") and result.get("result"):
+                results = result["result"][0].get("results", [])
+                if results:
+                    return results[0].get("count", 0)
             return 0
         else:
             async with aiosqlite.connect(self.db_path) as db:
@@ -426,18 +438,20 @@ class CheckinManager:
                 SELECT streak_days FROM checkin_records WHERE user_id = ? AND guild_id = ? AND checkin_date = ?
             ''', [user_id, guild_id, today])
             
-            if result and result[0].get("results"):
-                row = result[0]["results"][0]
-                return row.get("streak_days", 0)
+            if result and result.get("success") and result.get("result"):
+                results = result["result"][0].get("results", [])
+                if results:
+                    return results[0].get("streak_days", 0)
             
             # 如果今天沒有簽到，檢查最近一次簽到的連續天數
             result = await self._execute_d1('''
                 SELECT streak_days FROM checkin_records WHERE user_id = ? AND guild_id = ? ORDER BY checkin_date DESC LIMIT 1
             ''', [user_id, guild_id])
             
-            if result and result[0].get("results"):
-                row = result[0]["results"][0]
-                return row.get("streak_days", 0)
+            if result and result.get("success") and result.get("result"):
+                results = result["result"][0].get("results", [])
+                if results:
+                    return results[0].get("streak_days", 0)
             return 0
         else:
             async with aiosqlite.connect(self.db_path) as db:
@@ -465,7 +479,7 @@ class CheckinManager:
                 SELECT * FROM checkin_records WHERE user_id = ? AND guild_id = ? AND checkin_date = ?
             ''', [user_id, guild_id, today])
             
-            return result and result[0].get("results") is not None
+            return result and result.get("success") and result.get("result") and result["result"][0].get("results") is not None
         else:
             async with aiosqlite.connect(self.db_path) as db:
                 async with db.execute(
@@ -488,14 +502,15 @@ class CheckinManager:
                     LIMIT ?
                 ''', [guild_id, limit])
                 
-                if result and result[0].get("results"):
+                if result and result.get("success") and result.get("result"):
+                    results = result["result"][0].get("results", [])
                     return [
                         {
                             "user_id": row.get("user_id"),
                             "value": row.get("max_streak", 0),
                             "label": "連續簽到天數"
                         }
-                        for row in result[0]["results"]
+                        for row in results
                     ]
             else:
                 result = await self._execute_d1('''
@@ -507,14 +522,15 @@ class CheckinManager:
                     LIMIT ?
                 ''', [guild_id, limit])
                 
-                if result and result[0].get("results"):
+                if result and result.get("success") and result.get("result"):
+                    results = result["result"][0].get("results", [])
                     return [
                         {
                             "user_id": row.get("user_id"),
                             "value": row.get("total_checkins", 0),
                             "label": "總簽到次數"
                         }
-                        for row in result[0]["results"]
+                        for row in results
                     ]
             return []
         else:
