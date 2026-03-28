@@ -328,21 +328,40 @@ async def checkin_scheduler():
     """簽到系統定時任務"""
     await bot.wait_until_ready()
     
+    print(f"🕐 ===== 簽到定時任務已啟動 =====", flush=True)
+    
     while not bot.is_closed():
         try:
             now = datetime.now()
             current_time = now.strftime("%H:%M")
             current_date = now.strftime("%Y-%m-%d")
             
+            # 每小時打印一次狀態
+            if now.minute == 0:
+                print(f"🕐 定時任務運行中 - 當前時間: {current_time} ({current_date})", flush=True)
+            
+            print(f"🔍 ===== 檢查簽到配置 =====", flush=True)
+            print(f"🔍 當前時間: {current_time}", flush=True)
+            
             # 檢查所有服務器的簽到配置
             for guild in bot.guilds:
                 guild_id = str(guild.id)
                 config = await checkin_manager.get_config(guild_id)
                 
+                print(f"🔍 服務器: {guild.name} (ID: {guild_id})", flush=True)
+                if config:
+                    print(f"🔍 配置存在 - 簽到時間: {config.get('checkin_time')}, 頻道 ID: {config.get('channel_id')}", flush=True)
+                else:
+                    print(f"🔍 沒有簽到配置", flush=True)
+                
                 if config and config['checkin_time'] == current_time:
+                    print(f"✅ 時間匹配！準備發送簽到訊息", flush=True)
+                    
                     # 發送簽到訊息
                     channel = bot.get_channel(int(config['channel_id']))
                     if channel:
+                        print(f"✅ 找到頻道: {channel.name}", flush=True)
+                        
                         view = CheckinView(checkin_manager, config['gif_url'])
                         embed = discord.Embed(
                             title="✨ 每日簽到",
@@ -354,9 +373,11 @@ async def checkin_scheduler():
                             embed.set_image(url=config['gif_url'])
                         
                         message = await channel.send(embed=embed, view=view)
+                        print(f"✅ 簽到訊息已發送", flush=True)
                         
                         # 釘選訊息
                         await message.pin()
+                        print(f"✅ 訊息已釘選", flush=True)
                         
                         # 發送總簽到次數排行榜
                         leaderboard_total = await checkin_manager.get_leaderboard(guild_id, limit=10, by_streak=False)
@@ -387,6 +408,7 @@ async def checkin_scheduler():
                             embed.set_footer(text=f"更新時間: {now.strftime('%Y-%m-%d %H:%M:%S')}")
                             
                             await channel.send(embed=embed)
+                            print(f"✅ 總簽到次數排行榜已發送", flush=True)
                         
                         # 發送連續簽到排行榜
                         leaderboard_streak = await checkin_manager.get_leaderboard(guild_id, limit=10, by_streak=True)
@@ -417,12 +439,20 @@ async def checkin_scheduler():
                             embed.set_footer(text=f"更新時間: {now.strftime('%Y-%m-%d %H:%M:%S')}")
                             
                             await channel.send(embed=embed)
+                            print(f"✅ 連續簽到排行榜已發送", flush=True)
+                    else:
+                        print(f"❌ 找不到頻道 ID: {config['channel_id']}", flush=True)
+                else:
+                    if config:
+                        print(f"⏰ 時間不匹配: 設置時間={config['checkin_time']}, 當前時間={current_time}", flush=True)
             
             # 每分鐘檢查一次
             await asyncio.sleep(60)
             
         except Exception as e:
-            print(f"簽到定時任務錯誤: {e}")
+            print(f"簽到定時任務錯誤: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             await asyncio.sleep(60)
 
 # ========== 心跳檢測 ==========
@@ -1633,6 +1663,46 @@ async def checkin_command(ctx: commands.Context):
     
     # 釘選訊息
     await message.pin()
+
+@bot.command(name="trigger_checkin")
+async def trigger_checkin_command(ctx: commands.Context):
+    """手動觸發簽到訊息（測試用，僅管理員）"""
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.send("❌ 只有管理員可以使用此命令")
+        return
+    
+    print(f"🔍 ===== trigger_checkin 被調用 =====", flush=True)
+    print(f"🔍 用戶: {ctx.author.name} (ID: {ctx.author.id})", flush=True)
+    print(f"🔵 頻道: {ctx.channel.name} (ID: {ctx.channel.id})", flush=True)
+    
+    guild_id = str(ctx.guild.id)
+    config = await checkin_manager.get_config(guild_id)
+    
+    if not config:
+        await ctx.send("❌ 還沒有設置簽到系統！請使用 `!set_checkin_channel` 設置")
+        return
+    
+    print(f"🔍 簽到配置: {config}", flush=True)
+    
+    # 發送簽到訊息
+    view = CheckinView(checkin_manager, config['gif_url'])
+    embed = discord.Embed(
+        title="✨ 每日簽到（測試）",
+        description=f"這是手動觸發的簽到訊息！",
+        color=discord.Color.gold()
+    )
+    
+    if config['gif_url']:
+        embed.set_image(url=config['gif_url'])
+    
+    message = await ctx.send(embed=embed, view=view)
+    print(f"✅ 測試簽到訊息已發送", flush=True)
+    
+    # 釘選訊息
+    await message.pin()
+    print(f"✅ 測試訊息已釘選", flush=True)
+    
+    await ctx.send("✅ 測試簽到訊息已發送！")
 
 @bot.command(name="leaderboard")
 async def leaderboard_command(ctx: commands.Context):
