@@ -320,7 +320,7 @@ class GifConfirmationView(View):
             color=discord.Color.blue()
         )
         embed.add_field(name="提示", value="你可以直接發送 GIF 連結，或者上傳圖片", inline=False)
-        embed.add_field(name="⏰ 有效時間", value="5 分鐘", inline=False)
+        embed.add_field(name="⏰ 有效時間", value="2 分鐘", inline=False)
         
         await interaction.response.edit_message(embed=embed, view=None)
         print(f"✅ 用戶已被告知發送 GIF", flush=True)

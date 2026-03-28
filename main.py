@@ -1,7 +1,20 @@
 import discord
 from discord.ext import commands
 from discord.ui import Button, View, Modal, TextInput
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+# 台灣時區 (UTC+8)
+TAIWAN_TZ = timezone(timedelta(hours=8))
+
+def get_taiwan_time():
+    """獲取台灣時間"""
+    return datetime.now(TAIWAN_TZ)
+
+def format_taiwan_time(dt=None):
+    """格式化台灣時間"""
+    if dt is None:
+        dt = get_taiwan_time()
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 from dotenv import load_dotenv
 import os
 import json
@@ -235,7 +248,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                         title=f"{emoji_display} 自動添加標籤",
                         description=f"訊息已自動添加標籤 `{tag.name}`",
                         color=discord.Color.green(),
-                        timestamp=datetime.now()
+                        timestamp=get_taiwan_time()
                     )
                     embed.add_field(name="標籤", value=f"{emoji_display} {tag.name}", inline=True)
                     if tag.description:
@@ -306,7 +319,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
                         title=f"{emoji_display} 自動移除標籤",
                         description=f"訊息已自動移除標籤 `{tag.name}`",
                         color=discord.Color.orange(),
-                        timestamp=datetime.now()
+                        timestamp=get_taiwan_time()
                     )
                     embed.add_field(name="標籤", value=f"{emoji_display} {tag.name}", inline=True)
                     if tag.description:
@@ -332,7 +345,7 @@ async def checkin_scheduler():
     
     while not bot.is_closed():
         try:
-            now = datetime.now()
+            now = get_taiwan_time()
             current_time = now.strftime("%H:%M")
             current_date = now.strftime("%Y-%m-%d")
             
@@ -463,7 +476,7 @@ async def heartbeat_monitor():
     counter = 0
     while not bot.is_closed():
         counter += 1
-        print(f"💓 Bot 心跳 #{counter} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"💓 Bot 心跳 #{counter} - {format_taiwan_time()}")
         await asyncio.sleep(30)
 
 @bot.event
@@ -652,15 +665,24 @@ class BackToMenuView(View):
         guild_id = str(interaction.guild.id)
         channel_id = str(interaction.channel.id)
         
+        print(f"🔍 ===== BackToMenuView.back_to_menu 被調用 =====", flush=True)
+        print(f"🔍 Guild ID: {guild_id}", flush=True)
+        print(f"🔍 Channel ID: {channel_id}", flush=True)
+        
         # 檢查是否在簽到頻道
         config = await checkin_manager.get_config(guild_id)
+        print(f"🔍 Config: {config}", flush=True)
+        
         is_checkin_channel = config and config['channel_id'] == channel_id
+        print(f"🔍 is_checkin_channel: {is_checkin_channel}", flush=True)
         
         # 根據情況選擇 View 和 embed
         if is_checkin_channel:
             view = MainMenuViewWithCheckin(guild_id=guild_id, channel_id=channel_id)
+            print(f"🔍 使用 MainMenuViewWithCheckin", flush=True)
         else:
             view = MainMenuView(guild_id=guild_id, channel_id=channel_id)
+            print(f"🔍 使用 MainMenuView", flush=True)
         
         embed = discord.Embed(
             title="🎮 Discord 標籤系統",
@@ -673,10 +695,13 @@ class BackToMenuView(View):
         
         if is_checkin_channel:
             embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
+            print(f"🔍 已添加簽到設定按鈕到 embed", flush=True)
         
         embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
         
+        print(f"🔍 準備編輯訊息...", flush=True)
         await interaction.response.edit_message(embed=embed, view=view)
+        print(f"✅ 訊息已編輯", flush=True)
 
 class MainMenuViewWithCheckin(View):
     """主選單 - 包含簽到設定按鈕"""
@@ -1225,7 +1250,7 @@ async def menu_command(ctx: commands.Context):
         print(f"🔍 ===== menu_command 被調用 =====", flush=True)
         print(f"🔍 用戶: {ctx.author.name} (ID: {ctx.author.id})", flush=True)
         print(f"🔵 頻道: {ctx.channel.name} (ID: {ctx.channel.id})", flush=True)
-        print(f"🏰 時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+        print(f"🏰 時間: {format_taiwan_time()}", flush=True)
         
         guild_id = str(ctx.guild.id)
         channel_id = str(ctx.channel.id)
@@ -1272,7 +1297,7 @@ async def status_command(ctx: commands.Context):
     )
     embed.add_field(name="🤖 Bot 名稱", value=bot.user.name, inline=True)
     embed.add_field(name="🆔 實例 ID", value=INSTANCE_ID, inline=True)
-    embed.add_field(name="⏰ 當前時間", value=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), inline=True)
+    embed.add_field(name="⏰ 當前時間", value=format_taiwan_time(), inline=True)
     embed.add_field(name="🌐 服務器數量", value=len(bot.guilds), inline=True)
     embed.add_field(name="🏷️ 總標籤數", value=stats.get('total_tags', 0), inline=True)
     embed.add_field(name="📝 已標記訊息", value=stats.get('total_tagged_messages', 0), inline=True)
@@ -1532,7 +1557,7 @@ async def check_instances_command(ctx: commands.Context):
     print(f"🔍 服務器數量: {len(bot.guilds)}", flush=True)
     print(f"🔍 連接狀態: {bot.ws.status if hasattr(bot.ws, 'status') else 'unknown'}", flush=True)
     print(f"🔍 延遲: {int(bot.latency * 1000)}ms", flush=True)
-    print(f"🔍 當前時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    print(f"🔍 當前時間: {format_taiwan_time()}", flush=True)
     
     embed = discord.Embed(
         title="🔍 實例診斷信息",
