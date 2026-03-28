@@ -3,13 +3,21 @@ Database module with Cloudflare D1 support
 Supports both local SQLite and Cloudflare D1
 """
 
+import sys
+import os
+
+# 設置無緩衝輸出，確保 print() 立即顯示
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
+sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', buffering=1)
+
 import aiosqlite
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
 from dataclasses import dataclass
-import os
 import aiohttp
+
+print("🚀 開始加載 database_d1.py")
 
 @dataclass
 class Tag:
