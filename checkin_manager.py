@@ -23,8 +23,8 @@ class CheckinManager:
             if not all([self.account_id, self.database_id, self.api_token]):
                 raise ValueError("使用 D1 模式時必須設置 CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_DATABASE_ID 和 CLOUDFLARE_API_TOKEN")
     
-    async def _execute_d1(self, sql: str, params: list = None) -> list:
-        """執行 D1 查詢"""
+    async def _execute_d1(self, sql: str, params: list = None):
+        """執行 D1 查詢，返回完整結果對象"""
         url = f"https://api.cloudflare.com/client/v4/accounts/{self.account_id}/d1/database/{self.database_id}/query"
         
         headers = {
@@ -40,11 +40,8 @@ class CheckinManager:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=data, headers=headers) as response:
                 result = await response.json()
-                
-                if result.get("success"):
-                    return result.get("result", [])
-                else:
-                    raise Exception(f"D1 查詢失敗: {result}")
+                # 返回完整的結果對象，讓調用方檢查 success 字段
+                return result
     
     async def init_tables(self):
         """初始化簽到相關表"""
