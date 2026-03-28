@@ -177,6 +177,61 @@ class Database:
         else:
             # 使用 Cloudflare D1 - 檢查表是否存在
             print("🌐 使用 Cloudflare D1 數據庫")
+            print("🔍 檢查並創建 D1 表結構...")
+            
+            # 嘗試創建 tags 表
+            try:
+                create_tags_sql = '''
+                    CREATE TABLE IF NOT EXISTS tags (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT UNIQUE NOT NULL,
+                        category TEXT NOT NULL,
+                        emoji TEXT DEFAULT '🏷️',
+                        description TEXT,
+                        image_url TEXT,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        color INTEGER DEFAULT 5814783
+                    )
+                '''
+                await self._execute_d1(create_tags_sql)
+                print("✅ tags 表創建成功")
+            except Exception as e:
+                print(f"⚠️ tags 表創建失敗（可能已存在）: {e}")
+            
+            # 嘗試創建 message_tags 表
+            try:
+                create_message_tags_sql = '''
+                    CREATE TABLE IF NOT EXISTS message_tags (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        message_id TEXT NOT NULL,
+                        channel_id TEXT NOT NULL,
+                        guild_id TEXT NOT NULL,
+                        tag_id INTEGER NOT NULL,
+                        tagged_by TEXT NOT NULL,
+                        tagged_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        message_content TEXT,
+                        author_id TEXT,
+                        created_at TEXT,
+                        FOREIGN KEY (tag_id) REFERENCES tags(id),
+                        UNIQUE(message_id, tag_id)
+                    )
+                '''
+                await self._execute_d1(create_message_tags_sql)
+                print("✅ message_tags 表創建成功")
+            except Exception as e:
+                print(f"⚠️ message_tags 表創建失敗（可能已存在）: {e}")
+            
+            # 創建索引
+            try:
+                await self._execute_d1('CREATE INDEX IF NOT EXISTS idx_message_tags_message ON message_tags(message_id)')
+                await self._execute_d1('CREATE INDEX IF NOT EXISTS idx_message_tags_tag ON message_tags(tag_id)')
+                await self._execute_d1('CREATE INDEX IF NOT EXISTS idx_message_tags_guild ON message_tags(guild_id)')
+                await self._execute_d1('CREATE INDEX IF NOT EXISTS idx_message_tags_content ON message_tags(message_content)')
+                print("✅ 索引創建成功")
+            except Exception as e:
+                print(f"⚠️ 索引創建失敗: {e}")
+            
+            print("✅ D1 表結構檢查完成")
     
     async def create_tag(self, name: str, category: str, emoji: str = '🏷️',
                         description: str = "", image_url: str = "", color: int = 5814783) -> int:

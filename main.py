@@ -1245,6 +1245,73 @@ async def test_command(ctx: commands.Context):
     await ctx.send("✅ 測試成功（新版本 v3.0）")
     print("✅ test_command 完成")
 
+@bot.command(name="rebuild_d1_tables")
+async def rebuild_d1_tables_command(ctx: commands.Context):
+    """重建 D1 數據庫表結構"""
+    if not USE_D1:
+        await ctx.send("❌ 當前不使用 D1 數據庫")
+        return
+    
+    await ctx.send("⚠️ 即將刪除並重建 D1 表結構，這會刪除所有數據！")
+    await ctx.send("⚠️ 請確認是否繼續？輸入 `!confirm_rebuild` 確認")
+
+@bot.command(name="confirm_rebuild")
+async def confirm_rebuild_command(ctx: commands.Context):
+    """確認重建 D1 數據庫表結構"""
+    if not USE_D1:
+        await ctx.send("❌ 當前不使用 D1 數據庫")
+        return
+    
+    try:
+        # 刪除現有表
+        await db._execute_d1('DROP TABLE IF EXISTS message_tags')
+        await db._execute_d1('DROP TABLE IF EXISTS tags')
+        
+        # 創建 tags 表
+        await db._execute_d1('''
+            CREATE TABLE tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                category TEXT NOT NULL,
+                emoji TEXT DEFAULT '🏷️',
+                description TEXT,
+                image_url TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                color INTEGER DEFAULT 5814783
+            )
+        ''')
+        
+        # 創建 message_tags 表
+        await db._execute_d1('''
+            CREATE TABLE message_tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id TEXT NOT NULL,
+                channel_id TEXT NOT NULL,
+                guild_id TEXT NOT NULL,
+                tag_id INTEGER NOT NULL,
+                tagged_by TEXT NOT NULL,
+                tagged_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                message_content TEXT,
+                author_id TEXT,
+                created_at TEXT,
+                FOREIGN KEY (tag_id) REFERENCES tags(id),
+                UNIQUE(message_id, tag_id)
+            )
+        ''')
+        
+        # 創建索引
+        await db._execute_d1('CREATE INDEX IF NOT EXISTS idx_message_tags_message ON message_tags(message_id)')
+        await db._execute_d1('CREATE INDEX IF NOT EXISTS idx_message_tags_tag ON message_tags(tag_id)')
+        await db._execute_d1('CREATE INDEX IF NOT EXISTS idx_message_tags_guild ON message_tags(guild_id)')
+        await db._execute_d1('CREATE INDEX IF NOT EXISTS idx_message_tags_content ON message_tags(message_content)')
+        
+        await ctx.send("✅ D1 表結構重建成功！")
+        await ctx.send("💡 現在可以創建新標籤了")
+    except Exception as e:
+        await ctx.send(f"❌ 重建失敗: {str(e)}")
+        import traceback
+        traceback.print_exc(flush=True)
+
 @bot.command(name="ping")
 async def ping_command(ctx: commands.Context):
     """Ping 命令 - 測試 bot 是否正常工作"""
