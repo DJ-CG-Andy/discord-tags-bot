@@ -732,17 +732,17 @@ class AddTagModal(Modal, title='新增標籤'):
             success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description, tag_image_url)
             
             if success:
-            # 使用 display_emoji 來顯示 emoji 或圖片連結
-            emoji_display = display_emoji(normalized_emoji)
-            
-            embed = discord.Embed(
-                title="✅ 標籤創建成功",
-                description=f"新標籤 `{tag_name}` 已添加",
-                color=discord.Color.green()
-            )
-            
-            # 如果有圖片連結，設置為縮略圖
-            if tag_image_url:
+                # 使用 display_emoji 來顯示 emoji 或圖片連結
+                emoji_display = display_emoji(normalized_emoji)
+                
+                embed = discord.Embed(
+                    title="✅ 標籤創建成功",
+                    description=f"新標籤 `{tag_name}` 已添加",
+                    color=discord.Color.green()
+                )
+                
+                # 如果有圖片連結，設置為縮略圖
+                if tag_image_url:
                 embed.set_thumbnail(url=tag_image_url)
             
             embed.add_field(name="名稱", value=tag_name, inline=True)
