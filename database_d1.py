@@ -93,6 +93,9 @@ class Database:
                 print(f"⚠️  未知參數類型，轉換為字符串: {param}", flush=True)
                 body["params"].append({"type": "text", "value": str(param)})
         
+        print(f"🔍 準備發送的 body: {body}", flush=True)
+        print(f"🔍 SQL: {sql}", flush=True)
+        
         async with aiohttp.ClientSession() as session:
             async with session.post(self.d1_api_url, headers=headers, json=body) as response:
                 print(f"🔍 D1 API 響應狀態: {response.status}", flush=True)
