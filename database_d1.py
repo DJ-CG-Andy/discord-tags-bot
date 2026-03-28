@@ -21,6 +21,9 @@ class Tag:
     image_url: str
     created_at: str
     color: int
+    
+    def __str__(self):
+        return f"Tag(name={self.name}, emoji={self.emoji}, category={self.category})"
 
 @dataclass
 class MessageTag:
@@ -178,22 +181,33 @@ class Database:
                     return None
         else:
             try:
+                print(f"🔍 準備創建標籤: name={name}, category={category}, emoji={emoji}")
                 sql = "INSERT INTO tags (name, category, emoji, description, image_url, color) VALUES (?, ?, ?, ?, ?, ?)"
                 result = await self._execute_d1(sql, (name, category, emoji, description, image_url, color))
+                print(f"🔍 INSERT 返回: {result}")
                 
-                # 檢查結果是否成功
-                if result and len(result) > 0:
-                    # D1 插入成功，返回新標籤的 ID
-                    # 由於 D1 的 INSERT 不返回行信息，我們需要查詢剛創建的標籤
-                    result2 = await self._execute_d1('SELECT id FROM tags WHERE name = ? ORDER BY id DESC LIMIT 1', (name,))
-                    if result2 and len(result2) > 0 and "results" in result2[0]:
-                        rows = result2[0]["results"]
-                        if rows:
-                            return rows[0].get("id")
+                # D1 插入成功，返回新標籤的 ID
+                # 由於 D1 的 INSERT 不返回行信息，我們需要查詢剛創建的標籤
+                # 使用多個條件來確保查詢到正確的標籤
+                result2 = await self._execute_d1(
+                    'SELECT id FROM tags WHERE name = ? AND emoji = ? AND category = ? ORDER BY id DESC LIMIT 1', 
+                    (name, emoji, category)
+                )
+                print(f"🔍 查詢返回: {result2}")
                 
+                if result2 and len(result2) > 0 and "results" in result2[0]:
+                    rows = result2[0]["results"]
+                    if rows:
+                        tag_id = rows[0].get("id")
+                        print(f"✅ 成功創建標籤，ID: {tag_id}")
+                        return tag_id
+                
+                print(f"❌ 查詢失敗或沒有找到結果")
                 return None
             except Exception as e:
                 print(f"❌ 創建標籤失敗: {e}")
+                import traceback
+                traceback.print_exc()
                 return None
     
     async def get_all_tags(self) -> List[Tag]:

@@ -410,8 +410,8 @@ class HistoryProcessor:
             embed.add_field(name="標籤", value=tag.name, inline=True)
 
             # 添加返回按鈕
-            from main import AdvancedView
-            view = AdvancedView(str(channel.guild.id))
+            from main import BackToMenuView
+            view = BackToMenuView()
             
             await interaction.followup.send(embed=embed, view=view)
 
