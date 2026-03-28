@@ -79,19 +79,19 @@ class Database:
             "params": []
         }
         
-        # 處理參數
+        # 處理參數 - D1 不需要 type 字段，直接傳遞值
         for param in params:
             print(f"🔍 處理參數: {param} (類型: {type(param).__name__})", flush=True)
             if isinstance(param, str):
-                body["params"].append({"type": "text", "value": param})
+                body["params"].append(param)
             elif isinstance(param, int):
-                body["params"].append({"type": "integer", "value": param})
+                body["params"].append(param)
             elif param is None:
-                body["params"].append({"type": "null"})
+                body["params"].append(None)
             else:
                 # 其他類型，轉換為字符串
                 print(f"⚠️  未知參數類型，轉換為字符串: {param}", flush=True)
-                body["params"].append({"type": "text", "value": str(param)})
+                body["params"].append(str(param))
         
         print(f"🔍 準備發送的 body: {body}", flush=True)
         print(f"🔍 SQL: {sql}", flush=True)
