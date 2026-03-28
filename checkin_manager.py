@@ -144,14 +144,15 @@ class CheckinManager:
                 SELECT * FROM checkin_config WHERE guild_id = ?
             ''', [guild_id])
             
-            if result and result[0].get("results"):
+            if result and len(result) > 0 and result[0].get("results"):
                 row = result[0]["results"][0]
+                # 確保返回的字典有所有必需的字段
                 return {
                     "id": row.get("id"),
-                    "guild_id": row.get("guild_id"),
+                    "guild_id": row.get("guild_id") or guild_id,
                     "channel_id": row.get("channel_id"),
-                    "checkin_time": row.get("checkin_time"),
-                    "gif_url": row.get("gif_url"),
+                    "checkin_time": row.get("checkin_time") or "00:00",
+                    "gif_url": row.get("gif_url") or "",
                     "created_at": row.get("created_at"),
                     "updated_at": row.get("updated_at")
                 }
