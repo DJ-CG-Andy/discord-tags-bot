@@ -469,11 +469,14 @@ class MainMenuView(View):
             # 分組顯示標籤
             tag_list = []
             for i, tag in enumerate(tags):
+                print(f"🔍 標籤 {i}: name={tag.name}, emoji={tag.emoji}, emoji_type={type(tag.emoji)}")
                 # 使用 display_emoji 來顯示 emoji 或圖片連結
                 emoji_display = display_emoji(tag.emoji)
+                print(f"🔍 emoji_display: {emoji_display}, type={type(emoji_display)}")
                 tag_list.append(f"{emoji_display} **{tag.name}**")
                 if tag.description:
                     tag_list[-1] += f" - {tag.description}"
+                print(f"🔍 tag_list[{i}]: {tag_list[-1]}")
             
             embed = discord.Embed(
                 title="📋 所有標籤",
@@ -569,11 +572,14 @@ class MainMenuViewWithCheckin(View):
             # 分組顯示標籤
             tag_list = []
             for i, tag in enumerate(tags):
+                print(f"🔍 標籤 {i}: name={tag.name}, emoji={tag.emoji}, emoji_type={type(tag.emoji)}")
                 # 使用 display_emoji 來顯示 emoji 或圖片連結
                 emoji_display = display_emoji(tag.emoji)
+                print(f"🔍 emoji_display: {emoji_display}, type={type(emoji_display)}")
                 tag_list.append(f"{emoji_display} **{tag.name}**")
                 if tag.description:
                     tag_list[-1] += f" - {tag.description}"
+                print(f"🔍 tag_list[{i}]: {tag_list[-1]}")
             
             embed = discord.Embed(
                 title="📋 所有標籤",
