@@ -73,6 +73,25 @@ else:
 # 命令鎖 - 防止重複執行
 _command_locks = {}
 
+async def acquire_command_lock(command_name: str, user_id: str, timeout: float = 5.0):
+    """獲取命令鎖"""
+    lock_key = f"{command_name}_{user_id}"
+    if lock_key not in _command_locks:
+        _command_locks[lock_key] = asyncio.Lock()
+    
+    try:
+        await asyncio.wait_for(_command_locks[lock_key].acquire(), timeout=timeout)
+        return True
+    except asyncio.TimeoutError:
+        return False
+
+def release_command_lock(command_name: str, user_id: str):
+    """釋放命令鎖"""
+    lock_key = f"{command_name}_{user_id}"
+    if lock_key in _command_locks:
+        if _command_locks[lock_key].locked():
+            _command_locks[lock_key].release()
+
 # 初始化標誌
 _initialized = False
 
@@ -1145,41 +1164,51 @@ class DeleteTagModal(Modal, title='刪除標籤'):
 @bot.command(name="menu")
 async def menu_command(ctx: commands.Context):
     """顯示主菜單"""
-    print(f"🔍 ===== menu_command 被調用 =====", flush=True)
-    print(f"🔍 用戶: {ctx.author.name} (ID: {ctx.author.id})", flush=True)
-    print(f"🔵 頻道: {ctx.channel.name} (ID: {ctx.channel.id})", flush=True)
-    print(f"🏰 時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    # 檢查是否已經在執行中
+    user_id = str(ctx.author.id)
+    if not await acquire_command_lock("menu", user_id, timeout=1.0):
+        print(f"⚠️ menu_command 已在執行中，跳過重複請求", flush=True)
+        return
     
-    guild_id = str(ctx.guild.id)
-    channel_id = str(ctx.channel.id)
-    
-    # 檢查是否在簽到頻道
-    config = await checkin_manager.get_config(guild_id)
-    is_checkin_channel = config and config['channel_id'] == channel_id
-    
-    # 根據情況選擇 View
-    if is_checkin_channel:
-        view = MainMenuViewWithCheckin(guild_id=guild_id, channel_id=channel_id)
-    else:
-        view = MainMenuView(guild_id=guild_id, channel_id=channel_id)
-    
-    embed = discord.Embed(
-        title="🎮 Discord 標籤系統",
-        description="選擇一個操作：",
-        color=discord.Color.gold()
-    )
-    embed.add_field(name="🏷️ 新增標籤", value="添加新的標籤", inline=False)
-    embed.add_field(name="🔍 搜索標籤", value="搜索帶有標籤的消息", inline=False)
-    embed.add_field(name="📋 查看標籤", value="查看所有可用標籤", inline=False)
-    
-    if is_checkin_channel:
-        embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
-    
-    embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
-    
-    print(f"🔍 準備發送 menu 訊息", flush=True)
-    await ctx.send(embed=embed, view=view)
-    print(f"✅ menu 訊息已發送", flush=True)
+    try:
+        print(f"🔍 ===== menu_command 被調用 =====", flush=True)
+        print(f"🔍 用戶: {ctx.author.name} (ID: {ctx.author.id})", flush=True)
+        print(f"🔵 頻道: {ctx.channel.name} (ID: {ctx.channel.id})", flush=True)
+        print(f"🏰 時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+        
+        guild_id = str(ctx.guild.id)
+        channel_id = str(ctx.channel.id)
+        
+        # 檢查是否在簽到頻道
+        config = await checkin_manager.get_config(guild_id)
+        is_checkin_channel = config and config['channel_id'] == channel_id
+        
+        # 根據情況選擇 View
+        if is_checkin_channel:
+            view = MainMenuViewWithCheckin(guild_id=guild_id, channel_id=channel_id)
+        else:
+            view = MainMenuView(guild_id=guild_id, channel_id=channel_id)
+        
+        embed = discord.Embed(
+            title="🎮 Discord 標籤系統",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="🏷️ 新增標籤", value="添加新的標籤", inline=False)
+        embed.add_field(name="🔍 搜索標籤", value="搜索帶有標籤的消息", inline=False)
+        embed.add_field(name="📋 查看標籤", value="查看所有可用標籤", inline=False)
+        
+        if is_checkin_channel:
+            embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
+        
+        embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
+        
+        print(f"🔍 準備發送 menu 訊息", flush=True)
+        await ctx.send(embed=embed, view=view)
+        print(f"✅ menu 訊息已發送", flush=True)
+    finally:
+        # 釋放鎖
+        release_command_lock("menu", user_id)
 
 @bot.command(name="status")
 async def status_command(ctx: commands.Context):
