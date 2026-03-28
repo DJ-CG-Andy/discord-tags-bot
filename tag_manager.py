@@ -81,10 +81,21 @@ class TagManager:
     async def create_custom_tag(self, name: str, category: str,
                                    emoji: str = "🏷️", description: str = "", image_url: str = "") -> bool:
             """創建自定義標籤"""
+            print(f"🔍 ===== create_custom_tag 被調用 =====", flush=True)
+            print(f"🔍 參數: name={name}, category={category}, emoji={emoji}", flush=True)
+            print(f"🔍 self.config 類型: {type(self.config)}", flush=True)
+            print(f"🔍 self.config: {self.config}", flush=True)
+            
             colors = self.config.get("tag_colors", {})
+            print(f"🔍 colors 類型: {type(colors)}", flush=True)
+            print(f"🔍 colors: {colors}", flush=True)
+            
             color = colors.get(category, 5814783)
+            print(f"🔍 color 類型: {type(color)}", flush=True)
+            print(f"🔍 color: {color}", flush=True)
             
             tag_id = await self.db.create_tag(name, category, emoji, description, image_url, color)
+            print(f"🔍 create_custom_tag 完成，tag_id={tag_id}", flush=True)
             return tag_id is not None    
     async def get_available_tags(self, category: str = None) -> List[Tag]:
         """獲取可用標籤"""
