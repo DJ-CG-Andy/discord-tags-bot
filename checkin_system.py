@@ -89,9 +89,9 @@ class CheckinConfigModal(Modal, title="調整簽到時間"):
         # 更新配置
         await self.checkin_manager.set_config(
             self.guild_id, 
-            config.channel_id, 
+            config['channel_id'], 
             time_str, 
-            config.gif_url
+            config['gif_url']
         )
         
         embed = discord.Embed(
@@ -124,8 +124,8 @@ class SetGifModal(Modal, title="設置簽到 GIF"):
         # 更新配置
         await self.checkin_manager.set_config(
             self.guild_id, 
-            config.channel_id, 
-            config.checkin_time, 
+            config['channel_id'], 
+            config['checkin_time'], 
             gif_url
         )
         
@@ -183,18 +183,30 @@ class LeaderboardSelect(Select):
         )
         
         description = ""
+        current_rank = 1
+        last_value = None
+        
         for idx, entry in enumerate(leaderboard, 1):
             user_id = entry["user_id"]
             value = entry["value"]
-            medal = ""
+            
+            # 計算排名（同次數同排名）
             if idx == 1:
+                current_rank = 1
+            elif value != last_value:
+                current_rank = idx
+            
+            last_value = value
+            
+            medal = ""
+            if current_rank == 1:
                 medal = "🥇"
-            elif idx == 2:
+            elif current_rank == 2:
                 medal = "🥈"
-            elif idx == 3:
+            elif current_rank == 3:
                 medal = "🥉"
             else:
-                medal = f"{idx}."
+                medal = f"{current_rank}."
             
             description += f"{medal} <@{user_id}>: {value}\n"
         
@@ -233,7 +245,7 @@ class CheckinSettingsView(View):
         # 獲取當前配置
         config = await self.checkin_manager.get_config(self.guild_id)
         if config:
-            view = GifConfirmationView(self.checkin_manager, self.guild_id, str(interaction.channel.id), config.checkin_time)
+            view = GifConfirmationView(self.checkin_manager, self.guild_id, str(interaction.channel.id), config['checkin_time'])
         else:
             view = GifConfirmationView(self.checkin_manager, self.guild_id, str(interaction.channel.id), "00:00")
         
