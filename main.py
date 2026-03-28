@@ -1096,24 +1096,58 @@ async def debug_tags_command(ctx: commands.Context):
     """調試標籤 - 直接查看數據庫中的標籤"""
     print("🔍 ===== debug_tags 命令被調用 =====")
     try:
-        tags = await db.get_all_tags()
-        print(f"🔍 從數據庫獲取到 {len(tags)} 個標籤")
-        
-        if not tags:
-            await ctx.send("❌ 數據庫中沒有標籤")
-            return
-        
-        # 發送詳細的標籤信息
-        msg = f"📊 數據庫中的標籤 ({len(tags)} 個):\n\n"
-        for i, tag in enumerate(tags):
-            msg += f"**{i+1}. {tag.name}**\n"
-            msg += f"   ID: {tag.id}\n"
-            msg += f"   Emoji: {tag.emoji} (類型: {type(tag.emoji).__name__})\n"
-            msg += f"   Category: {tag.category}\n"
-            msg += f"   Description: {tag.description or '無'}\n"
-            msg += f"   Image URL: {tag.image_url or '無'}\n"
-            msg += f"   Created At: {tag.created_at}\n"
-            msg += f"   Color: {tag.color}\n\n"
+        # 直接查詢 D1 數據庫
+        if db.use_d1:
+            print("🔍 使用 D1 模式，直接查詢原始數據...")
+            sql = "SELECT * FROM tags ORDER BY id"
+            result = await db._execute_d1(sql)
+            print(f"🔍 D1 原始返回: {result}")
+            
+            if not result or len(result) == 0:
+                await ctx.send("❌ 數據庫中沒有標籤")
+                return
+            
+            # 解析原始數據
+            raw_tags = []
+            for row in result:
+                if "results" in row:
+                    for r in row["results"]:
+                        raw_tags.append(r)
+            
+            print(f"🔍 解析到 {len(raw_tags)} 個標籤的原始數據")
+            
+            # 發送原始數據
+            msg = f"📊 數據庫中的原始標籤數據 ({len(raw_tags)} 個):\n\n"
+            for i, tag in enumerate(raw_tags):
+                msg += f"**{i+1}. 標籤 ID: {tag.get('id')}**\n"
+                msg += f"   原始數據: {tag}\n"
+                msg += f"   Name: {tag.get('name')} (類型: {type(tag.get('name')).__name__})\n"
+                msg += f"   Emoji: {tag.get('emoji')} (類型: {type(tag.get('emoji')).__name__})\n"
+                msg += f"   Category: {tag.get('category')} (類型: {type(tag.get('category')).__name__})\n"
+                msg += f"   Description: {tag.get('description')} (類型: {type(tag.get('description')).__name__})\n"
+                msg += f"   Image URL: {tag.get('image_url')} (類型: {type(tag.get('image_url')).__name__})\n"
+                msg += f"   Created At: {tag.get('created_at')}\n"
+                msg += f"   Color: {tag.get('color')} (類型: {type(tag.get('color')).__name__})\n\n"
+        else:
+            print("🔍 使用 SQLite 模式...")
+            tags = await db.get_all_tags()
+            print(f"🔍 從數據庫獲取到 {len(tags)} 個標籤")
+            
+            if not tags:
+                await ctx.send("❌ 數據庫中沒有標籤")
+                return
+            
+            # 發送詳細的標籤信息
+            msg = f"📊 數據庫中的標籤 ({len(tags)} 個):\n\n"
+            for i, tag in enumerate(tags):
+                msg += f"**{i+1}. {tag.name}**\n"
+                msg += f"   ID: {tag.id}\n"
+                msg += f"   Emoji: {tag.emoji} (類型: {type(tag.emoji).__name__})\n"
+                msg += f"   Category: {tag.category}\n"
+                msg += f"   Description: {tag.description or '無'}\n"
+                msg += f"   Image URL: {tag.image_url or '無'}\n"
+                msg += f"   Created At: {tag.created_at}\n"
+                msg += f"   Color: {tag.color}\n\n"
         
         # Discord 限制訊息長度為 2000 字符
         if len(msg) > 2000:
