@@ -962,7 +962,7 @@ class ImportHistoryView(View):
     def initialize_options(self, text_channels):
         """初始化頻道選項"""
         if not self._initialized:
-            # 獲取 Select 組件
+            # 獲取 Select 組件（第一個組件）
             select = self.children[0]
             select.options = [
                 discord.SelectOption(
@@ -987,6 +987,21 @@ class ImportHistoryView(View):
         # 顯示 emoji 輸入模態框
         modal = ImportHistoryModal(self.guild_id, channel_id)
         await interaction.response.send_modal(modal)
+    
+    @discord.ui.button(label="🔙 返回", style=discord.ButtonStyle.secondary)
+    async def go_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """返回進階功能菜單"""
+        view = AdvancedFeaturesView()
+        embed = discord.Embed(
+            title="📥 進階功能",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="📥 導入歷史", value="導入頻道的歷史訊息並添加標籤", inline=False)
+        embed.add_field(name="📊 統計數據", value="查看系統統計和標籤使用情況", inline=False)
+        embed.add_field(name="🗑️ 刪除標籤", value="刪除不需要的標籤", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
 
 class ImportHistoryModal(Modal, title='導入歷史訊息'):
     """導入歷史訊息的模態框"""
@@ -1152,6 +1167,34 @@ async def status_command(ctx: commands.Context):
     embed.add_field(name="📦 延遲", value=f"{int(bot.latency * 1000)}ms", inline=True)
     
     await ctx.send(embed=embed)
+
+@bot.command(name="set_checkin_channel")
+async def set_checkin_channel_command(ctx: commands.Context):
+    """設置每日簽到頻道"""
+    print(f"🔍 ===== set_checkin_channel 被調用 =====", flush=True)
+    print(f"🔍 用戶: {ctx.author.name} (ID: {ctx.author.id})", flush=True)
+    print(f"🔵 頻道: {ctx.channel.name} (ID: {ctx.channel.id})", flush=True)
+    
+    guild_id = str(ctx.guild.id)
+    channel_id = str(ctx.channel.id)
+    
+    # 設置簽到頻道
+    success = await checkin_manager.set_config(guild_id, channel_id)
+    
+    if success:
+        print(f"✅ 簽到頻道設置成功", flush=True)
+        embed = discord.Embed(
+            title="✅ 簽到頻道設置成功",
+            description=f"每日簽到功能已在 **{ctx.channel.name}** 頻道啟用！",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="📌 當前頻道", value=ctx.channel.name, inline=False)
+        embed.add_field(name="🆔 頻道 ID", value=channel_id, inline=False)
+        embed.add_field(name="💡 提示", value="使用 `!menu` 查看主菜單，現在應該會顯示「✨ 簽到設定」選項", inline=False)
+        await ctx.send(embed=embed)
+    else:
+        print(f"❌ 簽到頻道設置失敗", flush=True)
+        await ctx.send("❌ 設置失敗，請稍後再試")
 
 @bot.command(name="debug_tags")
 async def debug_tags_command(ctx: commands.Context):
@@ -1333,6 +1376,32 @@ async def ping_command(ctx: commands.Context):
     print(f"🔍 Bot 延遲: {int(bot.latency * 1000)}ms")
     await ctx.send(f"🏓 Pong! 延遲: {int(bot.latency * 1000)}ms")
     print("✅ ping_command 完成")
+
+@bot.command(name="check_instances")
+async def check_instances_command(ctx: commands.Context):
+    """檢查實例數量 - 用於診斷重複訊息問題"""
+    print(f"🔍 ===== check_instances_command 被調用 =====", flush=True)
+    print(f"🔍 當前實例 ID: {INSTANCE_ID}", flush=True)
+    print(f"🔍 Bot 用戶名: {bot.user.name}", flush=True)
+    print(f"🔍 服務器數量: {len(bot.guilds)}", flush=True)
+    print(f"🔍 連接狀態: {bot.ws.status if hasattr(bot.ws, 'status') else 'unknown'}", flush=True)
+    print(f"🔍 延遲: {int(bot.latency * 1000)}ms", flush=True)
+    print(f"🔍 當前時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    
+    embed = discord.Embed(
+        title="🔍 實例診斷信息",
+        description=f"實例 ID: {INSTANCE_ID}",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Bot 用戶名", value=bot.user.name, inline=True)
+    embed.add_field(name="服務器數量", value=len(bot.guilds), inline=True)
+    embed.add_field(name="延遲", value=f"{int(bot.latency * 1000)}ms", inline=True)
+    embed.add_field(name="連接狀態", value=str(bot.ws.status) if hasattr(bot.ws, 'status') else 'unknown', inline=True)
+    embed.add_field(name="當前時間", value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), inline=True)
+    embed.add_field(name="💡 提示", value="如果看到多個實例發送訊息，可能有多個 bot 實例在運行", inline=False)
+    
+    await ctx.send(embed=embed)
+    print("✅ check_instances_command 完成", flush=True)
 
 @bot.command(name="force_delete_all_tags")
 async def force_delete_all_tags_command(ctx: commands.Context):
