@@ -677,13 +677,22 @@ class AddTagModal(Modal, title='新增標籤'):
     
     async def on_submit(self, interaction: discord.Interaction):
         """提交新增標籤"""
+        print("🔍 ===== AddTagModal on_submit 被調用 =====")
+        
         tag_name = self.name.value.strip()
         tag_emoji = self.emoji.value.strip()
         tag_description = self.description.value.strip()
         tag_image_url = self.image_url.value.strip()
         
+        print(f"🔍 從 Modal 獲取的原始值:")
+        print(f"   tag_name: {tag_name} (類型: {type(tag_name).__name__})")
+        print(f"   tag_emoji: {tag_emoji} (類型: {type(tag_emoji).__name__})")
+        print(f"   tag_description: {tag_description} (類型: {type(tag_description).__name__})")
+        print(f"   tag_image_url: {tag_image_url} (類型: {type(tag_image_url).__name__})")
+        
         # 標準化 emoji（如果是完整格式，提取 ID）
         normalized_emoji = normalize_emoji(tag_emoji)
+        print(f"🔍 標準化後的 emoji: {normalized_emoji}")
         
         # 驗證 emoji
         if len(normalized_emoji) == 0:
@@ -698,6 +707,13 @@ class AddTagModal(Modal, title='新增標籤'):
                 return
         
         # 創建標籤（使用標準化後的 emoji 和圖片連結）
+        print(f"🔍 準備調用 create_custom_tag:")
+        print(f"   name: {tag_name}")
+        print(f"   category: custom")
+        print(f"   emoji: {normalized_emoji}")
+        print(f"   description: {tag_description}")
+        print(f"   image_url: {tag_image_url}")
+        
         success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description, tag_image_url)
         
         if success:
