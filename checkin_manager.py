@@ -249,6 +249,7 @@ class CheckinManager:
                             "label": "總簽到次數"
                         }
                         for row in rows
+                    ]
     
     async def get_user_stats(self, user_id: str, guild_id: str) -> Dict:
         """獲取用戶簽到統計"""
