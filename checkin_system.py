@@ -288,22 +288,35 @@ class GifConfirmationView(View):
     
     @discord.ui.button(label="✅ 確定", style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # 設置等待狀態
-        import main
-        print(f"🔍 ===== 設置 _waiting_for_gif 狀態 =====", flush=True)
+        print(f"🔍 ===== GifConfirmationView.confirm 被調用 =====", flush=True)
         print(f"🔍 用戶 ID: {interaction.user.id}", flush=True)
         print(f"🔍 頻道 ID: {interaction.channel.id}", flush=True)
         print(f"🔍 Guild ID: {self.guild_id}", flush=True)
         print(f"🔍 Checkin Time: {self.checkin_time}", flush=True)
         
-        main.bot._waiting_for_gif = {
-            'user_id': str(interaction.user.id),
-            'channel_id': str(interaction.channel.id),
-            'guild_id': self.guild_id,
-            'checkin_time': self.checkin_time
-        }
-        
-        print(f"🔍 _waiting_for_gif 已設置: {main.bot._waiting_for_gif}", flush=True)
+        # 導入 main 模塊並設置等待狀態
+        try:
+            import main
+            print(f"🔍 main 模塊已導入", flush=True)
+            print(f"🔍 main.bot 是否存在: {hasattr(main, 'bot')}", flush=True)
+            
+            if hasattr(main, 'bot'):
+                print(f"🔍 main.bot 類型: {type(main.bot)}", flush=True)
+                
+                main.bot._waiting_for_gif = {
+                    'user_id': str(interaction.user.id),
+                    'channel_id': str(interaction.channel.id),
+                    'guild_id': self.guild_id,
+                    'checkin_time': self.checkin_time
+                }
+                
+                print(f"🔍 _waiting_for_gif 已設置: {main.bot._waiting_for_gif}", flush=True)
+            else:
+                print(f"❌ main.bot 不存在！", flush=True)
+        except Exception as e:
+            print(f"❌ 設置 _waiting_for_gif 時發生錯誤: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
         
         # 讓用戶發送 GIF
         embed = discord.Embed(
