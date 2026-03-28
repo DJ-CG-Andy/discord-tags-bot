@@ -409,7 +409,11 @@ class HistoryProcessor:
             embed.add_field(name="Emoji", value=tag.emoji, inline=True)
             embed.add_field(name="標籤", value=tag.name, inline=True)
 
-            await interaction.followup.send(embed=embed)
+            # 添加返回按鈕
+            from main import AdvancedView
+            view = AdvancedView(str(channel.guild.id))
+            
+            await interaction.followup.send(embed=embed, view=view)
 
         except Exception as e:
             await interaction.followup.send(f"❌ 導入歷史訊息時發生錯誤: {str(e)}")

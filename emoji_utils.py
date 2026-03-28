@@ -10,6 +10,7 @@ def compare_emoji(tag_emoji: str, reaction_emoji) -> bool:
     - 標準 emoji（👍、🏷️ 等）
     - 自定義 emoji（通過 ID 或完整格式比較）
     - ID（1486700764377124994）
+    - URL（https://cdn.discordapp.com/emojis/xxx.webp?size=40）
     """
     reaction_str = str(reaction_emoji)
     
@@ -39,7 +40,23 @@ def compare_emoji(tag_emoji: str, reaction_emoji) -> bool:
         # 比較完整格式
         return tag_emoji == reaction_str
     
-    # 4. 其他情況，直接比較
+    # 4. 如果 tag_emoji 是 URL
+    if tag_emoji.startswith("http"):
+        # 提取 ID 並比較
+        import re
+        match = re.search(r'/emojis/(\d+)', tag_emoji)
+        if match:
+            tag_emoji_id = match.group(1)
+            
+            # 檢查反應是否是自定義 emoji，並比較 ID
+            if hasattr(reaction_emoji, 'id') and reaction_emoji.id:
+                return tag_emoji_id == str(reaction_emoji.id)
+            
+            # 檢查反應字串中是否包含 ID
+            if f":{tag_emoji_id}>" in reaction_str:
+                return True
+    
+    # 5. 其他情況，直接比較
     return tag_emoji == reaction_str
 
 
@@ -50,6 +67,7 @@ def normalize_emoji(emoji_input: str) -> str:
     - 如果是標準 emoji，直接返回
     - 如果是 ID，直接返回
     - 如果是完整格式，提取 ID 並返回
+    - 如果是 URL，提取 ID 並返回
     """
     # 如果是標準 emoji
     if len(emoji_input) <= 4:
@@ -63,6 +81,15 @@ def normalize_emoji(emoji_input: str) -> str:
     if emoji_input.startswith("<:") and emoji_input.endswith(">"):
         emoji_id = emoji_input.split(":")[-1].rstrip(">")
         return emoji_id
+    
+    # 如果是 URL，提取 ID
+    if emoji_input.startswith("http"):
+        # 從 URL 中提取 ID
+        # URL 格式: https://cdn.discordapp.com/emojis/{id}.webp?size=40
+        import re
+        match = re.search(r'/emojis/(\d+)', emoji_input)
+        if match:
+            return match.group(1)
     
     # 其他情況，直接返回
     return emoji_input

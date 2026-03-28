@@ -185,7 +185,7 @@ class Database:
                 if result and len(result) > 0:
                     # D1 插入成功，返回新標籤的 ID
                     # 由於 D1 的 INSERT 不返回行信息，我們需要查詢剛創建的標籤
-                    result2 = await self._execute_d1('SELECT id FROM tags WHERE name = ? ORDER BY id DESC LIMIT 1', [name])
+                    result2 = await self._execute_d1('SELECT id FROM tags WHERE name = ? ORDER BY id DESC LIMIT 1', (name,))
                     if result2 and len(result2) > 0 and "results" in result2[0]:
                         rows = result2[0]["results"]
                         if rows:
@@ -207,23 +207,33 @@ class Database:
             try:
                 sql = "SELECT * FROM tags ORDER BY category, name"
                 result = await self._execute_d1(sql)
+                print(f"🔍 get_all_tags D1 返回: {result}")
                 tags = []
                 
-                if result and len(result) > 0 and "results" in result[0]:
-                    for r in result[0]["results"]:
-                        tags.append(Tag(
-                            r.get("id"),
-                            r.get("name"),
-                            r.get("category"),
-                            r.get("emoji"),
-                            r.get("description", ""),
-                            r.get("image_url", ""),
-                            r.get("created_at"),
-                            r.get("color", 5814783)
-                        ))
+                if result and len(result) > 0:
+                    print(f"🔍 result[0]: {result[0]}")
+                    if "results" in result[0]:
+                        print(f"🔍 results 數量: {len(result[0]['results'])}")
+                        for r in result[0]["results"]:
+                            print(f"🔍 處理標籤: {r}")
+                            tags.append(Tag(
+                                r.get("id"),
+                                r.get("name"),
+                                r.get("category"),
+                                r.get("emoji"),
+                                r.get("description", ""),
+                                r.get("image_url", ""),
+                                r.get("created_at"),
+                                r.get("color", 5814783)
+                            ))
+                            print(f"🔍 創建的 Tag: {tags[-1]}")
+                
+                print(f"🔍 總共找到 {len(tags)} 個標籤")
                 return tags
             except Exception as e:
                 print(f"❌ 獲取標籤失敗: {e}")
+                import traceback
+                traceback.print_exc()
                 return []
     
     async def get_tag_by_name(self, name: str) -> Optional[Tag]:
@@ -421,9 +431,9 @@ class Database:
                 }
         else:
             try:
-                # 總標籤數
-                sql = 'SELECT COUNT(DISTINCT tag_id) as count FROM message_tags WHERE guild_id = ?'
-                result = await self._execute_d1(sql, (guild_id,))
+                # 總標籤數（從 tags 表統計）
+                sql = 'SELECT COUNT(*) as count FROM tags'
+                result = await self._execute_d1(sql)
                 total_tags = result[0]["results"][0]["count"] if result and result[0].get("results") else 0
                 
                 # 總消息數

@@ -854,6 +854,13 @@ class AdvancedFeaturesView(View):
 
 # ========== 導入歷史模態框 ==========
 
+@discord.ui.button(label="🔙 返回", style=discord.ButtonStyle.secondary)
+async def go_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+    """返回主菜單"""
+    from advanced_view import AdvancedView
+    view = AdvancedView(self.guild_id)
+    await interaction.response.edit_message(embed=view.get_embed(), view=view)
+
 class ImportHistoryView(View):
     """導入歷史訊息的視圖"""
     

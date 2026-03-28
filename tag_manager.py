@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 from database import Database, Tag
+from emoji_utils import display_emoji
 
 @dataclass
 class TagConfig:
@@ -122,10 +123,11 @@ class TagManager:
                 output.append(f"**{tag.category.upper()}**")
                 current_category = tag.category
             
-            output.append(f"  {tag.emoji} `{tag.name}` - {tag.description}")
+            # 使用 display_emoji 函數來顯示 emoji
+            display_emoji_str = display_emoji(tag.emoji)
+            output.append(f"  {display_emoji_str} `{tag.name}` - {tag.description}")
         
-        return "\n".join(output)
-    
+        return "\n".join(output)    
     def get_category_emoji(self, category: str) -> str:
         """獲取分類對應的 emoji"""
         categories = self.config.get("tag_categories", {})
