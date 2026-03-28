@@ -75,12 +75,17 @@ class Database:
         
         # 處理參數
         for param in params:
+            print(f"🔍 處理參數: {param} (類型: {type(param).__name__})")
             if isinstance(param, str):
                 body["params"].append({"type": "text", "value": param})
             elif isinstance(param, int):
                 body["params"].append({"type": "integer", "value": param})
             elif param is None:
                 body["params"].append({"type": "null"})
+            else:
+                # 其他類型，轉換為字符串
+                print(f"⚠️  未知參數類型，轉換為字符串: {param}")
+                body["params"].append({"type": "text", "value": str(param)})
         
         async with aiohttp.ClientSession() as session:
             async with session.post(self.d1_api_url, headers=headers, json=body) as response:
@@ -181,7 +186,22 @@ class Database:
                     return None
         else:
             try:
-                print(f"🔍 準備創建標籤: name={name}, category={category}, emoji={emoji}")
+                print(f"🔍 準備創建標籤:")
+                print(f"   name: {name} (類型: {type(name).__name__})")
+                print(f"   category: {category} (類型: {type(category).__name__})")
+                print(f"   emoji: {emoji} (類型: {type(emoji).__name__})")
+                print(f"   description: {description} (類型: {type(description).__name__})")
+                print(f"   image_url: {image_url} (類型: {type(image_url).__name__})")
+                print(f"   color: {color} (類型: {type(color).__name__})")
+                
+                # 確保所有參數都是正確的類型
+                name = str(name) if name is not None else ""
+                category = str(category) if category is not None else "custom"
+                emoji = str(emoji) if emoji is not None else "🏷️"
+                description = str(description) if description is not None else ""
+                image_url = str(image_url) if image_url is not None else ""
+                color = int(color) if isinstance(color, (int, str)) else 5814783
+                
                 sql = "INSERT INTO tags (name, category, emoji, description, image_url, color) VALUES (?, ?, ?, ?, ?, ?)"
                 result = await self._execute_d1(sql, (name, category, emoji, description, image_url, color))
                 print(f"🔍 INSERT 返回: {result}")

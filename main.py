@@ -1160,6 +1160,33 @@ async def debug_tags_command(ctx: commands.Context):
         traceback.print_exc()
         await ctx.send(f"❌ 調試失敗: {str(e)}")
 
+@bot.command(name="create_test_tag")
+async def create_test_tag_command(ctx: commands.Context, name: str, emoji: str):
+    """創建測試標籤
+    用法: !create_test_tag 測試標籤 🏷️
+    """
+    print(f"🔍 ===== create_test_tag 命令被調用 =====")
+    print(f"🔍 參數: name={name}, emoji={emoji}")
+    try:
+        # 標準化 emoji
+        normalized_emoji = normalize_emoji(emoji)
+        print(f"🔍 標準化後的 emoji: {normalized_emoji}")
+        
+        # 創建標籤
+        success = await tag_manager.create_custom_tag(name, "custom", normalized_emoji, "測試標籤", "")
+        
+        if success:
+            await ctx.send(f"✅ 測試標籤 `{name}` 創建成功！")
+            print(f"✅ 測試標籤創建成功")
+        else:
+            await ctx.send(f"❌ 測試標籤 `{name}` 創建失敗")
+            print(f"❌ 測試標籤創建失敗")
+    except Exception as e:
+        print(f"❌ create_test_tag 錯誤: {e}")
+        import traceback
+        traceback.print_exc()
+        await ctx.send(f"❌ 創建測試標籤時發生錯誤: {str(e)}")
+
 @bot.command(name="test")
 async def test_command(ctx: commands.Context):
     """測試命令"""
