@@ -57,18 +57,20 @@ bot = commands.Bot(
 # 初始化簽到 GIF 等待狀態
 bot._waiting_for_gif = None
 
+# 數據庫路徑配置
+DB_PATH = os.getenv("DATABASE_PATH", "discord_tags.db")
+
 # 初始化數據庫和管理器
 if USE_D1:
     db = Database(use_d1=True)
+    checkin_manager = CheckinManager(use_d1=True)
 else:
-    db = Database()
+    db = Database(db_path=DB_PATH)
+    checkin_manager = CheckinManager(db_path=DB_PATH)
+    
 tag_manager = TagManager(db)
 message_handler = None
 history_processor = None
-if USE_D1:
-    checkin_manager = CheckinManager(use_d1=True)
-else:
-    checkin_manager = CheckinManager()
 
 # 命令鎖 - 防止重複執行
 _command_locks = {}
@@ -453,10 +455,20 @@ async def on_ready():
     print(f"✅ 前綴: {config.get('prefix', '!')}")
     
     # 初始化數據庫
+    print(f"🔍 資料庫路徑: {DB_PATH}", flush=True)
+    print(f"🔍 資料庫文件是否存在: {os.path.exists(DB_PATH)}", flush=True)
+    if os.path.exists(DB_PATH):
+        print(f"🔍 資料庫文件大小: {os.path.getsize(DB_PATH)} bytes", flush=True)
+    
     await db.init_db()
     print("✅ 數據庫初始化完成")
     
+    print(f"🔍 資料庫初始化後文件是否存在: {os.path.exists(DB_PATH)}", flush=True)
+    if os.path.exists(DB_PATH):
+        print(f"🔍 資料庫初始化後文件大小: {os.path.getsize(DB_PATH)} bytes", flush=True)
+    
     # 初始化簽到系統表
+    print(f"🔍 開始初始化簽到系統表...", flush=True)
     await checkin_manager.init_tables()
     print("✅ 簽到系統初始化完成")
     
@@ -1257,6 +1269,39 @@ async def set_checkin_channel_command(ctx: commands.Context):
     else:
         print(f"❌ 簽到頻道設置失敗", flush=True)
         await ctx.send("❌ 設置失敗，請稍後再試")
+
+@bot.command(name="check_config")
+async def check_config_command(ctx: commands.Context):
+    """檢查簽到配置"""
+    print(f"🔍 ===== check_config 被調用 =====", flush=True)
+    print(f"🔍 用戶: {ctx.author.name} (ID: {ctx.author.id})", flush=True)
+    print(f"🔵 頻道: {ctx.channel.name} (ID: {ctx.channel.id})", flush=True)
+    
+    guild_id = str(ctx.guild.id)
+    config = await checkin_manager.get_config(guild_id)
+    
+    print(f"🔍 查詢結果: {config}", flush=True)
+    
+    if config:
+        embed = discord.Embed(
+            title="📋 簽到配置",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="✅ 已配置", value="是", inline=True)
+        embed.add_field(name="📌 簽到頻道 ID", value=config.get('channel_id', '未知'), inline=False)
+        embed.add_field(name="⏰ 簽到時間", value=config.get('checkin_time', '00:00'), inline=True)
+        embed.add_field(name="🖼️ GIF 連結", value=config.get('gif_url', '無')[:50] + '...' if config.get('gif_url') else '無', inline=False)
+        embed.add_field(name="📅 創建時間", value=config.get('created_at', '未知'), inline=True)
+        embed.add_field(name="🔄 更新時間", value=config.get('updated_at', '未知'), inline=True)
+        await ctx.send(embed=embed)
+    else:
+        embed = discord.Embed(
+            title="❌ 簽到配置",
+            description="此伺服器還沒有設置簽到系統！",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="💡 提示", value="請使用 `!set_checkin_channel` 在簽到頻道中設置", inline=False)
+        await ctx.send(embed=embed)
 
 @bot.command(name="debug_tags")
 async def debug_tags_command(ctx: commands.Context):
