@@ -230,17 +230,23 @@ class Database:
                         print(f"🔍 results 數量: {len(result[0]['results'])}")
                         for r in result[0]["results"]:
                             print(f"🔍 處理標籤: {r}")
-                            tags.append(Tag(
+                            # 處理 created_at 欄位
+                            created_at = r.get("created_at")
+                            if not created_at or created_at == "":
+                                created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            
+                            tag = Tag(
                                 r.get("id"),
                                 r.get("name"),
                                 r.get("category"),
                                 r.get("emoji"),
                                 r.get("description", ""),
                                 r.get("image_url", ""),
-                                r.get("created_at"),
+                                created_at,
                                 r.get("color", 5814783)
-                            ))
-                            print(f"🔍 創建的 Tag: {tags[-1]}")
+                            )
+                            tags.append(tag)
+                            print(f"🔍 創建的 Tag: {tag}")
                 
                 print(f"🔍 總共找到 {len(tags)} 個標籤")
                 return tags
@@ -263,10 +269,15 @@ class Database:
                 result = await self._execute_d1(sql, (name,))
                 if result and result[0].get("results"):
                     r = result[0]["results"][0]
+                    # 處理 created_at 欄位
+                    created_at = r.get("created_at")
+                    if not created_at or created_at == "":
+                        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
                     return Tag(
                         r["id"], r["name"], r["category"], r["emoji"],
                         r.get("description", ""), r.get("image_url", ""),
-                        r["created_at"], r["color"]
+                        created_at, r["color"]
                     )
                 return None
             except Exception as e:
@@ -291,10 +302,15 @@ class Database:
                 for row in result:
                     if "results" in row:
                         for r in row["results"]:
+                            # 處理 created_at 欄位
+                            created_at = r.get("created_at")
+                            if not created_at or created_at == "":
+                                created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            
                             tags.append(Tag(
                                 r["id"], r["name"], r["category"], r["emoji"],
                                 r.get("description", ""), r.get("image_url", ""),
-                                r["created_at"], r["color"]
+                                created_at, r["color"]
                             ))
                 return tags
             except Exception as e:
@@ -406,17 +422,23 @@ class Database:
                 for row in result:
                     if "results" in row:
                         for r in row["results"]:
+                            # 處理 created_at 欄位
+                            created_at = r.get("created_at")
+                            if not created_at or created_at == "":
+                                created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            
                             stats.append({
                                 'tag': Tag(
                                     r["id"], r["name"], r["category"], r["emoji"],
                                     r.get("description", ""), r.get("image_url", ""),
-                                    r["created_at"], r["color"]
+                                    created_at, r["color"]
                                 ),
                                 'usage_count': r.get("usage_count", 0)
                             })
                 return stats
             except Exception as e:
                 print(f"❌ 獲取統計信息失敗: {e}")
+                return []
                 return []
     
     async def get_guild_statistics(self, guild_id: str) -> Dict:
