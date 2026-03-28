@@ -81,14 +81,20 @@ class Database:
         
         async with aiohttp.ClientSession() as session:
             async with session.post(self.d1_api_url, headers=headers, json=body) as response:
+                print(f"🔍 D1 API 響應狀態: {response.status}")
+                
                 if response.status != 200:
                     error_text = await response.text()
+                    print(f"❌ D1 API 錯誤: {response.status} - {error_text}")
                     raise Exception(f"D1 API 錯誤: {response.status} - {error_text}")
                 
                 result = await response.json()
+                print(f"🔍 D1 返回: {result}")
                 
                 if not result.get("success", False):
-                    raise Exception(f"D1 查詢失敗: {result.get('errors', [])}")
+                    errors = result.get('errors', [])
+                    print(f"❌ D1 查詢失敗: {errors}")
+                    raise Exception(f"D1 查詢失敗: {errors}")
                 
                 return result.get("result", [])
     
@@ -174,8 +180,17 @@ class Database:
             try:
                 sql = "INSERT INTO tags (name, category, emoji, description, image_url, color) VALUES (?, ?, ?, ?, ?, ?)"
                 result = await self._execute_d1(sql, (name, category, emoji, description, image_url, color))
-                if result and result[0].get("meta", {}).get("last_row_id"):
-                    return result[0]["meta"]["last_row_id"]
+                
+                # 檢查結果是否成功
+                if result and len(result) > 0:
+                    # D1 插入成功，返回新標籤的 ID
+                    # 由於 D1 的 INSERT 不返回行信息，我們需要查詢剛創建的標籤
+                    result2 = await self._execute_d1('SELECT id FROM tags WHERE name = ? ORDER BY id DESC LIMIT 1', [name])
+                    if result2 and len(result2) > 0 and "results" in result2[0]:
+                        rows = result2[0]["results"]
+                        if rows:
+                            return rows[0].get("id")
+                
                 return None
             except Exception as e:
                 print(f"❌ 創建標籤失敗: {e}")
