@@ -56,7 +56,7 @@ db = Database(os.getenv("DATABASE_PATH", "discord_tags.db"), use_d1=USE_D1)
 tag_manager = TagManager(db)
 message_handler = None
 history_processor = None
-checkin_manager = CheckinManager(os.getenv("DATABASE_PATH", "discord_tags.db"))
+checkin_manager = CheckinManager(os.getenv("DATABASE_PATH", "discord_tags.db"), use_d1=USE_D1)
 
 # 命令鎖 - 防止重複執行
 _command_locks = {}
