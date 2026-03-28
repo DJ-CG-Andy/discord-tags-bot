@@ -1161,9 +1161,10 @@ async def debug_tags_command(ctx: commands.Context):
         await ctx.send(f"❌ 調試失敗: {str(e)}")
 
 @bot.command(name="create_test_tag")
-async def create_test_tag_command(ctx: commands.Context, name: str, emoji: str):
+async def create_test_tag_command(ctx: commands.Context, name: str = "測試標籤", emoji: str = "🏷️"):
     """創建測試標籤
-    用法: !create_test_tag 測試標籤 🏷️
+    用法: !create_test_tag [名稱] [emoji]
+    範例: !create_test_tag 測試 🏷️
     """
     print(f"🔍 ===== create_test_tag 命令被調用 =====")
     print(f"🔍 參數: name={name}, emoji={emoji}")
