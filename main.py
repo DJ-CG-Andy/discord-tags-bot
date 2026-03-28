@@ -453,10 +453,14 @@ class MainMenuView(View):
     @discord.ui.button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋", custom_id="view_tags")
     async def view_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示所有標籤"""
+        print("🔍 ===== 開始查看標籤 =====")
         try:
+            print("🔍 正在獲取標籤...")
             tags = await tag_manager.get_available_tags()
+            print(f"🔍 獲取到 {len(tags)} 個標籤")
             
             if not tags:
+                print("🔍 沒有標籤，顯示提示訊息")
                 embed = discord.Embed(
                     title="📋 標籤列表",
                     description="暫無可用標籤，請先新增標籤！",
@@ -556,10 +560,14 @@ class MainMenuViewWithCheckin(View):
     @discord.ui.button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋", custom_id="view_tags_with_checkin")
     async def view_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示所有標籤"""
+        print("🔍 ===== 開始查看標籤（帶簽到） =====")
         try:
+            print("🔍 正在獲取標籤...")
             tags = await tag_manager.get_available_tags()
+            print(f"🔍 獲取到 {len(tags)} 個標籤")
             
             if not tags:
+                print("🔍 沒有標籤，顯示提示訊息")
                 embed = discord.Embed(
                     title="📋 標籤列表",
                     description="暫無可用標籤，請先新增標籤！",

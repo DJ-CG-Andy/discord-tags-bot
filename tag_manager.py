@@ -88,9 +88,15 @@ class TagManager:
             return tag_id is not None    
     async def get_available_tags(self, category: str = None) -> List[Tag]:
         """獲取可用標籤"""
+        print(f"🔍 get_available_tags 被調用，category={category}")
         if category:
-            return await self.db.get_tags_by_category(category)
-        return await self.db.get_all_tags()
+            print(f"🔍 按分類獲取標籤: {category}")
+            tags = await self.db.get_tags_by_category(category)
+        else:
+            print(f"🔍 獲取所有標籤")
+            tags = await self.db.get_all_tags()
+        print(f"🔍 返回 {len(tags)} 個標籤")
+        return tags
     
     async def get_tag_info(self, tag_name: str) -> Optional[Tag]:
         """獲取標籤信息"""
