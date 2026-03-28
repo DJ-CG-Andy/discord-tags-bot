@@ -454,6 +454,7 @@ class MainMenuView(View):
     async def view_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示所有標籤"""
         print("🔍 ===== 開始查看標籤 =====")
+        print(f"🔍 交互來自: {interaction.user.name} ({interaction.user.id})")
         try:
             print("🔍 正在獲取標籤...")
             tags = await tag_manager.get_available_tags()
@@ -482,6 +483,7 @@ class MainMenuView(View):
                     tag_list[-1] += f" - {tag.description}"
                 print(f"🔍 tag_list[{i}]: {tag_list[-1]}")
             
+            print(f"🔍 準備發送 embed，tag_list 長度: {len(tag_list)}")
             embed = discord.Embed(
                 title="📋 所有標籤",
                 description="\n".join(tag_list),
@@ -491,7 +493,19 @@ class MainMenuView(View):
             
             # 添加返回按鈕
             view = BackToMenuView()
+            print(f"🔍 準備編輯訊息...")
             await interaction.response.edit_message(embed=embed, view=view)
+            print("🔍 ===== 查看標籤完成 =====")
+            
+        except Exception as e:
+            print(f"❌ 查看標籤時發生錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                await interaction.response.send_message(f"❌ 查看標籤時發生錯誤: {str(e)}")
+            except:
+                print("❌ 無法發送錯誤訊息")
+                await interaction.followup.send(f"❌ 查看標籤時發生錯誤: {str(e)}")
             
         except Exception as e:
             print(f"查看標籤錯誤: {e}")
@@ -561,6 +575,7 @@ class MainMenuViewWithCheckin(View):
     async def view_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示所有標籤"""
         print("🔍 ===== 開始查看標籤（帶簽到） =====")
+        print(f"🔍 交互來自: {interaction.user.name} ({interaction.user.id})")
         try:
             print("🔍 正在獲取標籤...")
             tags = await tag_manager.get_available_tags()
@@ -589,6 +604,7 @@ class MainMenuViewWithCheckin(View):
                     tag_list[-1] += f" - {tag.description}"
                 print(f"🔍 tag_list[{i}]: {tag_list[-1]}")
             
+            print(f"🔍 準備發送 embed，tag_list 長度: {len(tag_list)}")
             embed = discord.Embed(
                 title="📋 所有標籤",
                 description="\n".join(tag_list),
@@ -598,14 +614,19 @@ class MainMenuViewWithCheckin(View):
             
             # 添加返回按鈕
             view = BackToMenuView()
+            print(f"🔍 準備編輯訊息...")
             await interaction.response.edit_message(embed=embed, view=view)
+            print("🔍 ===== 查看標籤完成 =====")
             
         except Exception as e:
-            print(f"查看標籤錯誤: {e}")
+            print(f"❌ 查看標籤時發生錯誤: {e}")
+            import traceback
+            traceback.print_exc()
             try:
-                await interaction.response.send_message("❌ 查看標籤時發生錯誤")
+                await interaction.response.send_message(f"❌ 查看標籤時發生錯誤: {str(e)}")
             except:
-                await interaction.followup.send("❌ 查看標籤時發生錯誤")
+                print("❌ 無法發送錯誤訊息")
+                await interaction.followup.send(f"❌ 查看標籤時發生錯誤: {str(e)}")
     
     @discord.ui.button(label="✨ 簽到設定", style=discord.ButtonStyle.success, emoji="✨", custom_id="checkin_settings")
     async def checkin_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1069,6 +1090,41 @@ async def status_command(ctx: commands.Context):
     embed.add_field(name="📦 延遲", value=f"{int(bot.latency * 1000)}ms", inline=True)
     
     await ctx.send(embed=embed)
+
+@bot.command(name="debug_tags")
+async def debug_tags_command(ctx: commands.Context):
+    """調試標籤 - 直接查看數據庫中的標籤"""
+    print("🔍 ===== debug_tags 命令被調用 =====")
+    try:
+        tags = await db.get_all_tags()
+        print(f"🔍 從數據庫獲取到 {len(tags)} 個標籤")
+        
+        if not tags:
+            await ctx.send("❌ 數據庫中沒有標籤")
+            return
+        
+        # 發送詳細的標籤信息
+        msg = f"📊 數據庫中的標籤 ({len(tags)} 個):\n\n"
+        for i, tag in enumerate(tags):
+            msg += f"**{i+1}. {tag.name}**\n"
+            msg += f"   ID: {tag.id}\n"
+            msg += f"   Emoji: {tag.emoji} (類型: {type(tag.emoji).__name__})\n"
+            msg += f"   Category: {tag.category}\n"
+            msg += f"   Description: {tag.description or '無'}\n"
+            msg += f"   Image URL: {tag.image_url or '無'}\n"
+            msg += f"   Created At: {tag.created_at}\n"
+            msg += f"   Color: {tag.color}\n\n"
+        
+        # Discord 限制訊息長度為 2000 字符
+        if len(msg) > 2000:
+            msg = msg[:1950] + "\n...（訊息太長，已截斷）"
+        
+        await ctx.send(msg)
+    except Exception as e:
+        print(f"❌ debug_tags 錯誤: {e}")
+        import traceback
+        traceback.print_exc()
+        await ctx.send(f"❌ 調試失敗: {str(e)}")
 
 @bot.command(name="test")
 async def test_command(ctx: commands.Context):
