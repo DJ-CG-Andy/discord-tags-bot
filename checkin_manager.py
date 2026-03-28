@@ -147,13 +147,13 @@ class CheckinManager:
             if result and result[0].get("results"):
                 row = result[0]["results"][0]
                 return {
-                    "id": row[0],
-                    "guild_id": row[1],
-                    "channel_id": row[2],
-                    "checkin_time": row[3],
-                    "gif_url": row[4],
-                    "created_at": row[5],
-                    "updated_at": row[6]
+                    "id": row.get("id"),
+                    "guild_id": row.get("guild_id"),
+                    "channel_id": row.get("channel_id"),
+                    "checkin_time": row.get("checkin_time"),
+                    "gif_url": row.get("gif_url"),
+                    "created_at": row.get("created_at"),
+                    "updated_at": row.get("updated_at")
                 }
             return None
         else:
@@ -203,7 +203,7 @@ class CheckinManager:
             if result and result[0].get("results"):
                 # 昨天簽到了，連續天數 +1
                 yesterday_record = result[0]["results"][0]
-                streak = yesterday_record[4] + 1
+                streak = yesterday_record.get("streak_days", 0) + 1
             else:
                 # 昨天沒簽到，連續天數 = 1
                 streak = 1
@@ -265,7 +265,8 @@ class CheckinManager:
             ''', [user_id, guild_id])
             
             if result and result[0].get("results"):
-                return result[0]["results"][0][0]
+                row = result[0]["results"][0]
+                return row.get("count", 0)
             return 0
         else:
             async with aiosqlite.connect(self.db_path) as db:
@@ -287,7 +288,8 @@ class CheckinManager:
             ''', [user_id, guild_id, today])
             
             if result and result[0].get("results"):
-                return result[0]["results"][0][0]
+                row = result[0]["results"][0]
+                return row.get("streak_days", 0)
             
             # 如果今天沒有簽到，檢查最近一次簽到的連續天數
             result = await self._execute_d1('''
@@ -295,7 +297,8 @@ class CheckinManager:
             ''', [user_id, guild_id])
             
             if result and result[0].get("results"):
-                return result[0]["results"][0][0]
+                row = result[0]["results"][0]
+                return row.get("streak_days", 0)
             return 0
         else:
             async with aiosqlite.connect(self.db_path) as db:
@@ -349,8 +352,8 @@ class CheckinManager:
                 if result and result[0].get("results"):
                     return [
                         {
-                            "user_id": row[0],
-                            "value": row[1],
+                            "user_id": row.get("user_id"),
+                            "value": row.get("max_streak", 0),
                             "label": "連續簽到天數"
                         }
                         for row in result[0]["results"]
@@ -368,8 +371,8 @@ class CheckinManager:
                 if result and result[0].get("results"):
                     return [
                         {
-                            "user_id": row[0],
-                            "value": row[1],
+                            "user_id": row.get("user_id"),
+                            "value": row.get("total_checkins", 0),
                             "label": "總簽到次數"
                         }
                         for row in result[0]["results"]
