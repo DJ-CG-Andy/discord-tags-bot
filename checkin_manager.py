@@ -309,6 +309,7 @@ class CheckinManager:
         返回: (是否成功, 總簽到次數, 連續簽到天數)
         """
         today = datetime.now().strftime("%Y-%m-%d")
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
         
         if self.use_d1:
             # 檢查今天是否已經簽到
@@ -323,7 +324,6 @@ class CheckinManager:
                 return (False, total_count, streak)
             
             # 檢查昨天是否簽到
-            yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
             result = await self._execute_d1('''
                 SELECT * FROM checkin_records WHERE user_id = ? AND guild_id = ? AND checkin_date = ?
             ''', [user_id, guild_id, yesterday])
