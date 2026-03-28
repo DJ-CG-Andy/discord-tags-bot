@@ -1097,6 +1097,11 @@ class DeleteTagModal(Modal, title='刪除標籤'):
 @bot.command(name="menu")
 async def menu_command(ctx: commands.Context):
     """顯示主菜單"""
+    print(f"🔍 ===== menu_command 被調用 =====", flush=True)
+    print(f"🔍 用戶: {ctx.author.name} (ID: {ctx.author.id})", flush=True)
+    print(f"🔵 頻道: {ctx.channel.name} (ID: {ctx.channel.id})", flush=True)
+    print(f"🏰 時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    
     guild_id = str(ctx.guild.id)
     channel_id = str(ctx.channel.id)
     
@@ -1124,7 +1129,9 @@ async def menu_command(ctx: commands.Context):
     
     embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
     
+    print(f"🔍 準備發送 menu 訊息", flush=True)
     await ctx.send(embed=embed, view=view)
+    print(f"✅ menu 訊息已發送", flush=True)
 
 @bot.command(name="status")
 async def status_command(ctx: commands.Context):
