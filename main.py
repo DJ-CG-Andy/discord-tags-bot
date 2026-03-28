@@ -284,19 +284,19 @@ async def checkin_scheduler():
                 guild_id = str(guild.id)
                 config = await checkin_manager.get_config(guild_id)
                 
-                if config and config.checkin_time == current_time:
+                if config and config['checkin_time'] == current_time:
                     # 發送簽到訊息
-                    channel = bot.get_channel(int(config.channel_id))
+                    channel = bot.get_channel(int(config['channel_id']))
                     if channel:
-                        view = CheckinView(checkin_manager, config.gif_url)
+                        view = CheckinView(checkin_manager, config['gif_url'])
                         embed = discord.Embed(
                             title="✨ 每日簽到",
                             description=f"今天是 {current_date}，點擊下方按鈕進行簽到！",
                             color=discord.Color.gold()
                         )
                         
-                        if config.gif_url:
-                            embed.set_image(url=config.gif_url)
+                        if config['gif_url']:
+                            embed.set_image(url=config['gif_url'])
                         
                         message = await channel.send(embed=embed, view=view)
                         
@@ -896,7 +896,7 @@ async def menu_command(ctx: commands.Context):
     
     # 檢查是否在簽到頻道
     config = await checkin_manager.get_config(str(ctx.guild.id))
-    if config and config.channel_id == str(ctx.channel.id):
+    if config and config['channel_id'] == str(ctx.channel.id):
         embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
     
     embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
@@ -985,15 +985,15 @@ async def checkin_command(ctx: commands.Context):
         return
     
     # 發送簽到訊息
-    view = CheckinView(checkin_manager, config.gif_url)
+    view = CheckinView(checkin_manager, config['gif_url'])
     embed = discord.Embed(
         title="✨ 每日簽到",
         description="點擊下方按鈕進行簽到！",
         color=discord.Color.gold()
     )
     
-    if config.gif_url:
-        embed.set_image(url=config.gif_url)
+    if config['gif_url']:
+        embed.set_image(url=config['gif_url'])
     
     message = await ctx.send(embed=embed, view=view)
     
