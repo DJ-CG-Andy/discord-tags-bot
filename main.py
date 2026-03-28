@@ -1120,7 +1120,7 @@ class ConfirmDeleteAllTagsView(View):
         embed = discord.Embed(
             title="❌ 已取消",
             description="刪除操作已取消",
-            color=discord.Color.gray()
+            color=discord.Color.grey()
         )
         await interaction.response.edit_message(embed=embed, view=None)
 
