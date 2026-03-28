@@ -743,17 +743,17 @@ class AddTagModal(Modal, title='新增標籤'):
                 
                 # 如果有圖片連結，設置為縮略圖
                 if tag_image_url:
-                embed.set_thumbnail(url=tag_image_url)
-            
-            embed.add_field(name="名稱", value=tag_name, inline=True)
-            embed.add_field(name="Emoji", value=emoji_display, inline=True)
-            if tag_description:
-                embed.add_field(name="說明", value=tag_description, inline=False)
-            if tag_image_url:
-                embed.add_field(name="圖片", value=f"[查看圖片]({tag_image_url})", inline=False)
-            embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 `{emoji_display}` emoji，就會自動加入此標籤！", inline=False)
-            
-            await interaction.response.send_message(embed=embed)
+                    embed.set_thumbnail(url=tag_image_url)
+                
+                embed.add_field(name="名稱", value=tag_name, inline=True)
+                embed.add_field(name="Emoji", value=emoji_display, inline=True)
+                if tag_description:
+                    embed.add_field(name="說明", value=tag_description, inline=False)
+                if tag_image_url:
+                    embed.add_field(name="圖片", value=f"[查看圖片]({tag_image_url})", inline=False)
+                embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 `{emoji_display}` emoji，就會自動加入此標籤！", inline=False)
+                
+                await interaction.response.send_message(embed=embed)
             else:
                 await interaction.response.send_message("❌ 標籤創建失敗，可能已存在")
         except Exception as e:
