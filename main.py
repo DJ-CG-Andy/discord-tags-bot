@@ -88,38 +88,63 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
     
+    print(f"🔍 ===== on_message 被調用 =====", flush=True)
+    print(f"🔍 用戶: {message.author.name} (ID: {message.author.id})", flush=True)
+    print(f"🔵 頻道: {message.channel.name} (ID: {message.channel.id})", flush=True)
+    print(f"📝 訊息內容: {message.content[:100] if message.content else '(無文字)'}", flush=True)
+    print(f"📎 附件數量: {len(message.attachments)}", flush=True)
+    
     # 處理簽到 GIF 更換
     # 檢查是否正在等待用戶發送 GIF
     if hasattr(bot, '_waiting_for_gif') and bot._waiting_for_gif:
+        print(f"🔍 檢測到 _waiting_for_gif 狀態", flush=True)
+        print(f"🔍 等待的用戶 ID: {bot._waiting_for_gif.get('user_id')}", flush=True)
+        print(f"🔍 等待的頻道 ID: {bot._waiting_for_gif.get('channel_id')}", flush=True)
+        
         user_id = str(message.author.id)
         channel_id = str(message.channel.id)
         
         if bot._waiting_for_gif.get('user_id') == user_id and bot._waiting_for_gif.get('channel_id') == channel_id:
+            print(f"✅ 匹配成功，開始處理 GIF", flush=True)
+            
             # 提取 GIF 連結
             gif_url = None
             if message.attachments:
-                for attachment in message.attachments:
+                print(f"🔍 檢查 {len(message.attachments)} 個附件", flush=True)
+                for i, attachment in enumerate(message.attachments):
+                    print(f"🔍 附件 {i}: {attachment.filename}, 類型: {attachment.content_type}", flush=True)
                     if attachment.content_type and 'image' in attachment.content_type:
                         gif_url = attachment.url
+                        print(f"✅ 從附件獲取到 URL: {gif_url}", flush=True)
                         break
             
             if not gif_url:
                 # 檢查訊息內容是否包含連結
+                print(f"🔍 檢查訊息內容中的連結", flush=True)
                 if message.content:
                     import re
                     urls = re.findall(r'(https?://\S+)', message.content)
+                    print(f"🔍 找到的連結: {urls}", flush=True)
                     if urls:
                         gif_url = urls[0]
+                        print(f"✅ 從訊息內容獲取到 URL: {gif_url}", flush=True)
             
             if gif_url:
+                print(f"🔍 準備更新 GIF 配置", flush=True)
                 # 更新配置
                 guild_id = bot._waiting_for_gif.get('guild_id')
+                print(f"🔍 Guild ID: {guild_id}", flush=True)
+                print(f"🔍 Channel ID: {channel_id}", flush=True)
+                print(f"🔍 Checkin Time: {bot._waiting_for_gif.get('checkin_time')}", flush=True)
+                
                 await checkin_manager.set_config(
                     guild_id,
                     channel_id,
                     bot._waiting_for_gif.get('checkin_time'),
                     gif_url
                 )
+                
+                print(f"✅ GIF 配置已更新", flush=True)
                 
                 embed = discord.Embed(
                     title="✅ GIF 已更新",
@@ -130,12 +155,20 @@ async def on_message(message: discord.Message):
                 embed.add_field(name="預覽", value="這就是新的簽到 GIF", inline=False)
                 
                 await message.reply(embed=embed)
+                print(f"✅ 回復已發送", flush=True)
             else:
+                print(f"❌ 未檢測到有效的 GIF", flush=True)
                 await message.reply("❌ 未檢測到有效的 GIF！請重新發送。")
+                print(f"✅ 錯誤回復已發送", flush=True)
             
             # 清除等待狀態
             bot._waiting_for_gif = None
+            print(f"🔍 _waiting_for_gif 狀態已清除", flush=True)
             return
+        else:
+            print(f"❌ 用戶或頻道不匹配", flush=True)
+    else:
+        print(f"🔍 沒有 _waiting_for_gif 狀態", flush=True)
     
     # 確保其他命令繼續正常工作
     await bot.process_commands(message)

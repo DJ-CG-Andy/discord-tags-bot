@@ -290,12 +290,20 @@ class GifConfirmationView(View):
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         # 設置等待狀態
         import main
+        print(f"🔍 ===== 設置 _waiting_for_gif 狀態 =====", flush=True)
+        print(f"🔍 用戶 ID: {interaction.user.id}", flush=True)
+        print(f"🔍 頻道 ID: {interaction.channel.id}", flush=True)
+        print(f"🔍 Guild ID: {self.guild_id}", flush=True)
+        print(f"🔍 Checkin Time: {self.checkin_time}", flush=True)
+        
         main.bot._waiting_for_gif = {
             'user_id': str(interaction.user.id),
             'channel_id': str(interaction.channel.id),
             'guild_id': self.guild_id,
             'checkin_time': self.checkin_time
         }
+        
+        print(f"🔍 _waiting_for_gif 已設置: {main.bot._waiting_for_gif}", flush=True)
         
         # 讓用戶發送 GIF
         embed = discord.Embed(
@@ -306,6 +314,7 @@ class GifConfirmationView(View):
         embed.add_field(name="提示", value="你可以直接發送 GIF 連結，或者上傳圖片", inline=False)
         
         await interaction.response.edit_message(embed=embed, view=None)
+        print(f"✅ 用戶已被告知發送 GIF", flush=True)
     
     @discord.ui.button(label="❌ 取消", style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
