@@ -370,6 +370,17 @@ async def checkin_scheduler():
             print(f"簽到定時任務錯誤: {e}")
             await asyncio.sleep(60)
 
+# ========== 心跳檢測 ==========
+
+async def heartbeat_monitor():
+    """心跳檢測，每 30 秒打印一次"""
+    await bot.wait_until_ready()
+    counter = 0
+    while not bot.is_closed():
+        counter += 1
+        print(f"💓 Bot 心跳 #{counter} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        await asyncio.sleep(30)
+
 @bot.event
 async def on_ready():
     """Bot 啟動時執行"""
@@ -408,6 +419,9 @@ async def on_ready():
     
     # 啟動簽到系統定時任務
     bot.loop.create_task(checkin_scheduler())
+    
+    # 啟動心跳檢測任務
+    bot.loop.create_task(heartbeat_monitor())
     
     # 清除舊的斜線命令
     try:
@@ -679,44 +693,45 @@ class AddTagModal(Modal, title='新增標籤'):
         """提交新增標籤"""
         print("🔍 ===== AddTagModal on_submit 被調用 =====")
         
-        tag_name = self.name.value.strip()
-        tag_emoji = self.emoji.value.strip()
-        tag_description = self.description.value.strip()
-        tag_image_url = self.image_url.value.strip()
-        
-        print(f"🔍 從 Modal 獲取的原始值:")
-        print(f"   tag_name: {tag_name} (類型: {type(tag_name).__name__})")
-        print(f"   tag_emoji: {tag_emoji} (類型: {type(tag_emoji).__name__})")
-        print(f"   tag_description: {tag_description} (類型: {type(tag_description).__name__})")
-        print(f"   tag_image_url: {tag_image_url} (類型: {type(tag_image_url).__name__})")
-        
-        # 標準化 emoji（如果是完整格式，提取 ID）
-        normalized_emoji = normalize_emoji(tag_emoji)
-        print(f"🔍 標準化後的 emoji: {normalized_emoji}")
-        
-        # 驗證 emoji
-        if len(normalized_emoji) == 0:
-            await interaction.response.send_message("❌ Emoji 不能為空！")
-            return
-        
-        # 檢查 emoji 是否已存在（使用標準化後的 emoji 進行比較）
-        tags = await tag_manager.get_available_tags()
-        for tag in tags:
-            if normalize_emoji(tag.emoji) == normalized_emoji:
-                await interaction.response.send_message(f"❌ Emoji `{tag_emoji}` 已經被使用！")
+        try:
+            tag_name = self.name.value.strip()
+            tag_emoji = self.emoji.value.strip()
+            tag_description = self.description.value.strip()
+            tag_image_url = self.image_url.value.strip()
+            
+            print(f"🔍 從 Modal 獲取的原始值:")
+            print(f"   tag_name: {tag_name} (類型: {type(tag_name).__name__})")
+            print(f"   tag_emoji: {tag_emoji} (類型: {type(tag_emoji).__name__})")
+            print(f"   tag_description: {tag_description} (類型: {type(tag_description).__name__})")
+            print(f"   tag_image_url: {tag_image_url} (類型: {type(tag_image_url).__name__})")
+            
+            # 標準化 emoji（如果是完整格式，提取 ID）
+            normalized_emoji = normalize_emoji(tag_emoji)
+            print(f"🔍 標準化後的 emoji: {normalized_emoji}")
+            
+            # 驗證 emoji
+            if len(normalized_emoji) == 0:
+                await interaction.response.send_message("❌ Emoji 不能為空！")
                 return
-        
-        # 創建標籤（使用標準化後的 emoji 和圖片連結）
-        print(f"🔍 準備調用 create_custom_tag:")
-        print(f"   name: {tag_name}")
-        print(f"   category: custom")
-        print(f"   emoji: {normalized_emoji}")
-        print(f"   description: {tag_description}")
-        print(f"   image_url: {tag_image_url}")
-        
-        success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description, tag_image_url)
-        
-        if success:
+            
+            # 檢查 emoji 是否已存在（使用標準化後的 emoji 進行比較）
+            tags = await tag_manager.get_available_tags()
+            for tag in tags:
+                if normalize_emoji(tag.emoji) == normalized_emoji:
+                    await interaction.response.send_message(f"❌ Emoji `{tag_emoji}` 已經被使用！")
+                    return
+            
+            # 創建標籤（使用標準化後的 emoji 和圖片連結）
+            print(f"🔍 準備調用 create_custom_tag:")
+            print(f"   name: {tag_name}")
+            print(f"   category: custom")
+            print(f"   emoji: {normalized_emoji}")
+            print(f"   description: {tag_description}")
+            print(f"   image_url: {tag_image_url}")
+            
+            success = await tag_manager.create_custom_tag(tag_name, "custom", normalized_emoji, tag_description, tag_image_url)
+            
+            if success:
             # 使用 display_emoji 來顯示 emoji 或圖片連結
             emoji_display = display_emoji(normalized_emoji)
             
@@ -739,8 +754,20 @@ class AddTagModal(Modal, title='新增標籤'):
             embed.add_field(name="💡 提示", value=f"現在只要有人在訊息上添加 `{emoji_display}` emoji，就會自動加入此標籤！", inline=False)
             
             await interaction.response.send_message(embed=embed)
-        else:
-            await interaction.response.send_message("❌ 標籤創建失敗，可能已存在")
+            else:
+                await interaction.response.send_message("❌ 標籤創建失敗，可能已存在")
+        except Exception as e:
+            print(f"❌ AddTagModal on_submit 發生錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                await interaction.response.send_message(f"❌ 創建標籤時發生錯誤: {str(e)}")
+            except:
+                print("❌ 無法發送錯誤訊息")
+                try:
+                    await interaction.followup.send(f"❌ 創建標籤時發生錯誤: {str(e)}")
+                except:
+                    print("❌ 無法使用 followup 發送錯誤訊息")
 
 # ========== 搜索標籤模態框 ==========
 
