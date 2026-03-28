@@ -444,3 +444,22 @@ class Database:
             except Exception as e:
                 print(f"❌ 刪除標籤失敗: {e}")
                 return False
+    
+    async def delete_all_tags(self):
+        """刪除所有標籤"""
+        if not self.use_d1:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('DELETE FROM message_tags')
+                await db.execute('DELETE FROM tags')
+                await db.commit()
+                return True
+        else:
+            try:
+                # 先刪除所有消息標籤
+                await self._execute_d1('DELETE FROM message_tags')
+                # 再刪除所有標籤
+                await self._execute_d1('DELETE FROM tags')
+                return True
+            except Exception as e:
+                print(f"❌ 刪除所有標籤失敗: {e}")
+                return False

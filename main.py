@@ -1054,6 +1054,69 @@ async def test_command(ctx: commands.Context):
     """測試命令"""
     await ctx.send("✅ 測試成功（新版本 v3.0）")
 
+@bot.command(name="force_delete_all_tags")
+async def force_delete_all_tags_command(ctx: commands.Context):
+    """強制刪除所有標籤"""
+    try:
+        # 創建確認視圖
+        view = ConfirmDeleteAllTagsView()
+        embed = discord.Embed(
+            title="⚠️ 危險操作",
+            description="這將刪除所有標籤和相關的消息標籤！\n\n此操作無法撤銷，請確認！",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="⚠️ 警告", value="所有標籤和關聯的標籤記錄將被永久刪除", inline=False)
+        
+        await ctx.send(embed=embed, view=view)
+    except Exception as e:
+        print(f"刪除標籤時發生錯誤: {e}")
+        await ctx.send("❌ 刪除標籤時發生錯誤")
+
+class ConfirmDeleteAllTagsView(View):
+    """確認刪除所有標籤視圖"""
+    
+    def __init__(self):
+        super().__init__(timeout=60)
+    
+    @discord.ui.button(label="✅ 確認刪除", style=discord.ButtonStyle.danger)
+    async def confirm_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """確認刪除"""
+        try:
+            success = await db.delete_all_tags()
+            if success:
+                embed = discord.Embed(
+                    title="✅ 刪除成功",
+                    description="所有標籤和相關的標籤記錄已刪除",
+                    color=discord.Color.green()
+                )
+                embed.add_field(name="📝 統計", value="已清除所有數據", inline=False)
+                await interaction.response.edit_message(embed=embed, view=None)
+            else:
+                embed = discord.Embed(
+                    title="❌ 刪除失敗",
+                    description="刪除過程中發生錯誤",
+                    color=discord.Color.red()
+                )
+                await interaction.response.edit_message(embed=embed, view=None)
+        except Exception as e:
+            print(f"刪除標籤時發生錯誤: {e}")
+            embed = discord.Embed(
+                title="❌ 錯誤",
+                description=f"刪除時發生錯誤: {str(e)}",
+                color=discord.Color.red()
+            )
+            await interaction.response.edit_message(embed=embed, view=None)
+    
+    @discord.ui.button(label="❌ 取消", style=discord.ButtonStyle.secondary)
+    async def cancel_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """取消刪除"""
+        embed = discord.Embed(
+            title="❌ 已取消",
+            description="刪除操作已取消",
+            color=discord.Color.gray()
+        )
+        await interaction.response.edit_message(embed=embed, view=None)
+
 # ========== 簽到系統命令 ==========
 
 @bot.command(name="setcheckin")
