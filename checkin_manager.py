@@ -239,13 +239,25 @@ class CheckinManager:
                 VALUES (?, ?, ?, ?)
             ''', [guild_id, channel_id, checkin_time, gif_url])
             
+            # 檢查是否成功
+            if result and result.get("success"):
+                print(f"✅ 簽到配置已創建: guild_id={guild_id}, channel_id={channel_id}", flush=True)
+                return True
+            
             # 如果失敗（因為已存在），則更新
-            if not result:
-                await self._execute_d1('''
-                    UPDATE checkin_config 
-                    SET channel_id = ?, checkin_time = ?, gif_url = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE guild_id = ?
-                ''', [channel_id, checkin_time, gif_url, guild_id])
+            print(f"📝 簽到配置已存在，正在更新: guild_id={guild_id}", flush=True)
+            result = await self._execute_d1('''
+                UPDATE checkin_config 
+                SET channel_id = ?, checkin_time = ?, gif_url = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE guild_id = ?
+            ''', [channel_id, checkin_time, gif_url, guild_id])
+            
+            if result and result.get("success"):
+                print(f"✅ 簽到配置已更新: guild_id={guild_id}, channel_id={channel_id}", flush=True)
+                return True
+            else:
+                print(f"❌ 簽到配置更新失敗: {result}", flush=True)
+                return False
         else:
             async with aiosqlite.connect(self.db_path) as db:
                 try:
@@ -254,6 +266,7 @@ class CheckinManager:
                         VALUES (?, ?, ?, ?)
                     ''', (guild_id, channel_id, checkin_time, gif_url))
                     await db.commit()
+                    print(f"✅ SQLite 簽到配置已創建: guild_id={guild_id}, channel_id={channel_id}", flush=True)
                 except aiosqlite.IntegrityError:
                     await db.execute('''
                         UPDATE checkin_config 
@@ -261,6 +274,7 @@ class CheckinManager:
                         WHERE guild_id = ?
                     ''', (channel_id, checkin_time, gif_url, guild_id))
                     await db.commit()
+                    print(f"✅ SQLite 簽到配置已更新: guild_id={guild_id}, channel_id={channel_id}", flush=True)
         
         return True
     
