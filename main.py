@@ -423,39 +423,20 @@ async def on_ready():
 # ========== 主菜單 ==========
 
 class MainMenuView(View):
-    """主選單 - 四個主要按鈕"""
+    """主選單"""
     
-    def __init__(self, channel_id: Optional[str] = None):
+    def __init__(self, guild_id: Optional[str] = None, channel_id: Optional[str] = None):
         super().__init__(timeout=None)
+        self.guild_id = guild_id
         self.channel_id = channel_id
-        self._add_checkin_button = False
     
-    async def check_show_checkin(self):
+    def _should_show_checkin_button(self):
         """檢查是否應該顯示簽到按鈕"""
-        if not self.channel_id:
+        if not self.guild_id or not self.channel_id:
             return False
-        
-        try:
-            # 獲取所有簽到配置
-            # 由於 CheckinManager 沒有獲取所有配置的方法，我們需要檢查當前服務器
-            # 這裡簡化處理：如果有任何配置，就假設當前頻道可能是簽到頻道
-            # 實際應該檢查配置中的 channel_id 是否等於當前 channel_id
-            config = await checkin_manager.get_config(str(self.channel_id))
-            return config is not None
-        except:
-            return False
-    
-    async def add_checkin_button_if_needed(self):
-        """如果需要，添加簽到按鈕"""
-        if await self.check_show_checkin():
-            # 清除現有按鈕
-            self.clear_items()
-            # 重新添加所有按鈕，包括簽到按鈕
-            self.add_item(discord.ui.Button(label="🏷️ 新增標籤", style=discord.ButtonStyle.primary, emoji="🏷️", custom_id="add_tag"))
-            self.add_item(discord.ui.Button(label="🔍 搜索標籤", style=discord.ButtonStyle.secondary, emoji="🔍", custom_id="search_tag"))
-            self.add_item(discord.ui.Button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋", custom_id="view_tags"))
-            self.add_item(discord.ui.Button(label="✨ 簽到設定", style=discord.ButtonStyle.success, emoji="✨", custom_id="checkin_settings"))
-            self.add_item(discord.ui.Button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features"))
+        # 由於是異步方法，我們在初始化時不調用它
+        # 而是在 menu_command 中決定是否添加按鈕
+        return False
     
     @discord.ui.button(label="🏷️ 新增標籤", style=discord.ButtonStyle.primary, emoji="🏷️", custom_id="add_tag")
     async def add_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -512,22 +493,6 @@ class MainMenuView(View):
             except:
                 await interaction.followup.send("❌ 查看標籤時發生錯誤")
     
-    @discord.ui.button(label="✨ 簽到設定", style=discord.ButtonStyle.success, emoji="✨", custom_id="checkin_settings", row=1)
-    async def checkin_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """顯示簽到設置菜單"""
-        guild_id = str(interaction.guild.id)
-        view = CheckinSettingsView(checkin_manager, guild_id)
-        embed = discord.Embed(
-            title="✨ 簽到設定",
-            description="選擇一個操作：",
-            color=discord.Color.gold()
-        )
-        embed.add_field(name="⏰ 調整時間", value="調整每日簽到的時間界限", inline=False)
-        embed.add_field(name="🖼️ 更換 GIF", value="更換簽到成功時顯示的 GIF", inline=False)
-        embed.add_field(name="📊 顯示排名", value="查看簽到排行榜", inline=False)
-        
-        await interaction.response.edit_message(embed=embed, view=view)
-    
     @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示進階功能菜單"""
@@ -562,6 +527,100 @@ class BackToMenuView(View):
         embed.add_field(name="🔍 搜索標籤", value="搜索帶有標籤的消息", inline=False)
         embed.add_field(name="📋 查看標籤", value="查看所有可用標籤", inline=False)
         embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class MainMenuViewWithCheckin(View):
+    """主選單 - 包含簽到設定按鈕"""
+    
+    def __init__(self, guild_id: Optional[str] = None, channel_id: Optional[str] = None):
+        super().__init__(timeout=None)
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+    
+    @discord.ui.button(label="🏷️ 新增標籤", style=discord.ButtonStyle.primary, emoji="🏷️", custom_id="add_tag_with_checkin")
+    async def add_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示新增標籤模態框"""
+        modal = AddTagModal()
+        await interaction.response.send_modal(modal)
+    
+    @discord.ui.button(label="🔍 搜索標籤", style=discord.ButtonStyle.secondary, emoji="🔍", custom_id="search_tag_with_checkin")
+    async def search_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示搜索標籤模態框"""
+        modal = SearchTagModal()
+        await interaction.response.send_modal(modal)
+    
+    @discord.ui.button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋", custom_id="view_tags_with_checkin")
+    async def view_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示所有標籤"""
+        try:
+            tags = await tag_manager.get_available_tags()
+            
+            if not tags:
+                embed = discord.Embed(
+                    title="📋 標籤列表",
+                    description="暫無可用標籤，請先新增標籤！",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="💡 提示", value="使用 `!menu` 點擊「🏷️ 新增標籤」來創建新標籤", inline=False)
+                await interaction.response.edit_message(embed=embed)
+                return
+            
+            # 分組顯示標籤
+            tag_list = []
+            for i, tag in enumerate(tags):
+                # 使用 display_emoji 來顯示 emoji 或圖片連結
+                emoji_display = display_emoji(tag.emoji)
+                tag_list.append(f"{emoji_display} **{tag.name}**")
+                if tag.description:
+                    tag_list[-1] += f" - {tag.description}"
+            
+            embed = discord.Embed(
+                title="📋 所有標籤",
+                description="\n".join(tag_list),
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="總數", value=f"共有 {len(tags)} 個標籤", inline=True)
+            
+            # 添加返回按鈕
+            view = BackToMenuView()
+            await interaction.response.edit_message(embed=embed, view=view)
+            
+        except Exception as e:
+            print(f"查看標籤錯誤: {e}")
+            try:
+                await interaction.response.send_message("❌ 查看標籤時發生錯誤")
+            except:
+                await interaction.followup.send("❌ 查看標籤時發生錯誤")
+    
+    @discord.ui.button(label="✨ 簽到設定", style=discord.ButtonStyle.success, emoji="✨", custom_id="checkin_settings")
+    async def checkin_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示簽到設置菜單"""
+        guild_id = str(interaction.guild.id)
+        view = CheckinSettingsView(checkin_manager, guild_id)
+        embed = discord.Embed(
+            title="✨ 簽到設定",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="⏰ 調整時間", value="調整每日簽到的時間界限", inline=False)
+        embed.add_field(name="🖼️ 更換 GIF", value="更換簽到成功時顯示的 GIF", inline=False)
+        embed.add_field(name="📊 顯示排名", value="查看簽到排行榜", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+    
+    @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features_with_checkin")
+    async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示進階功能菜單"""
+        view = AdvancedFeaturesView()
+        embed = discord.Embed(
+            title="📥 進階功能",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="📥 導入歷史", value="導入頻道的歷史訊息並添加標籤", inline=False)
+        embed.add_field(name="📊 統計數據", value="查看系統統計和標籤使用情況", inline=False)
+        embed.add_field(name="🗑️ 刪除標籤", value="刪除不需要的標籤", inline=False)
         
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -883,7 +942,18 @@ class DeleteTagModal(Modal, title='刪除標籤'):
 @bot.command(name="menu")
 async def menu_command(ctx: commands.Context):
     """顯示主菜單"""
-    view = MainMenuView(channel_id=str(ctx.channel.id))
+    guild_id = str(ctx.guild.id)
+    channel_id = str(ctx.channel.id)
+    
+    # 檢查是否在簽到頻道
+    config = await checkin_manager.get_config(guild_id)
+    is_checkin_channel = config and config['channel_id'] == channel_id
+    
+    # 根據情況選擇 View
+    if is_checkin_channel:
+        view = MainMenuViewWithCheckin(guild_id=guild_id, channel_id=channel_id)
+    else:
+        view = MainMenuView(guild_id=guild_id, channel_id=channel_id)
     
     embed = discord.Embed(
         title="🎮 Discord 標籤系統",
@@ -894,9 +964,7 @@ async def menu_command(ctx: commands.Context):
     embed.add_field(name="🔍 搜索標籤", value="搜索帶有標籤的消息", inline=False)
     embed.add_field(name="📋 查看標籤", value="查看所有可用標籤", inline=False)
     
-    # 檢查是否在簽到頻道
-    config = await checkin_manager.get_config(str(ctx.guild.id))
-    if config and config['channel_id'] == str(ctx.channel.id):
+    if is_checkin_channel:
         embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
     
     embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
