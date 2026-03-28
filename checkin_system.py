@@ -294,27 +294,22 @@ class GifConfirmationView(View):
         print(f"🔍 Guild ID: {self.guild_id}", flush=True)
         print(f"🔍 Checkin Time: {self.checkin_time}", flush=True)
         
-        # 導入 main 模塊並設置等待狀態
+        # 使用資料庫存儲 GIF 更換請求（避免多實例問題）
         try:
-            import main
-            print(f"🔍 main 模塊已導入", flush=True)
-            print(f"🔍 main.bot 是否存在: {hasattr(main, 'bot')}", flush=True)
+            success = await self.checkin_manager.set_gif_change_request(
+                user_id=str(interaction.user.id),
+                channel_id=str(interaction.channel.id),
+                guild_id=self.guild_id,
+                checkin_time=self.checkin_time,
+                timeout_seconds=300  # 5分鐘過期
+            )
             
-            if hasattr(main, 'bot'):
-                print(f"🔍 main.bot 類型: {type(main.bot)}", flush=True)
-                
-                main.bot._waiting_for_gif = {
-                    'user_id': str(interaction.user.id),
-                    'channel_id': str(interaction.channel.id),
-                    'guild_id': self.guild_id,
-                    'checkin_time': self.checkin_time
-                }
-                
-                print(f"🔍 _waiting_for_gif 已設置: {main.bot._waiting_for_gif}", flush=True)
+            if success:
+                print(f"✅ GIF 更換請求已保存到資料庫", flush=True)
             else:
-                print(f"❌ main.bot 不存在！", flush=True)
+                print(f"❌ 保存 GIF 更換請求失敗", flush=True)
         except Exception as e:
-            print(f"❌ 設置 _waiting_for_gif 時發生錯誤: {e}", flush=True)
+            print(f"❌ 保存 GIF 更換請求時發生錯誤: {e}", flush=True)
             import traceback
             traceback.print_exc()
         
@@ -325,6 +320,7 @@ class GifConfirmationView(View):
             color=discord.Color.blue()
         )
         embed.add_field(name="提示", value="你可以直接發送 GIF 連結，或者上傳圖片", inline=False)
+        embed.add_field(name="⏰ 有效時間", value="5 分鐘", inline=False)
         
         await interaction.response.edit_message(embed=embed, view=None)
         print(f"✅ 用戶已被告知發送 GIF", flush=True)

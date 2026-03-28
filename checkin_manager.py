@@ -73,6 +73,18 @@ class CheckinManager:
                     UNIQUE(user_id, guild_id, checkin_date)
                 )
             ''')
+            
+            await self._execute_d1('''
+                CREATE TABLE IF NOT EXISTS gif_change_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    channel_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
+                    checkin_time TEXT DEFAULT "00:00",
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TEXT NOT NULL
+                )
+            ''')
         else:
             # SQLite 模式
             async with aiosqlite.connect(self.db_path) as db:
@@ -100,6 +112,121 @@ class CheckinManager:
                     )
                 ''')
                 
+                await db.execute('''
+                    CREATE TABLE IF NOT EXISTS gif_change_requests (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id TEXT NOT NULL,
+                        channel_id TEXT NOT NULL,
+                        guild_id TEXT NOT NULL,
+                        checkin_time TEXT DEFAULT "00:00",
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        expires_at TEXT NOT NULL
+                    )
+                ''')
+                
+                await db.commit()
+    
+    async def set_gif_change_request(self, user_id: str, channel_id: str, guild_id: str, checkin_time: str = "00:00", timeout_seconds: int = 300) -> bool:
+        """設置 GIF 更換請求（使用資料庫存儲，避免多實例問題）"""
+        from datetime import datetime, timedelta
+        
+        # 計算過期時間
+        expires_at = (datetime.now() + timedelta(seconds=timeout_seconds)).strftime("%Y-%m-%d %H:%M:%S")
+        
+        if self.use_d1:
+            # 先刪除舊的請求
+            await self._execute_d1('''
+                DELETE FROM gif_change_requests WHERE user_id = ? AND channel_id = ?
+            ''', [user_id, channel_id])
+            
+            # 插入新請求
+            await self._execute_d1('''
+                INSERT INTO gif_change_requests (user_id, channel_id, guild_id, checkin_time, expires_at)
+                VALUES (?, ?, ?, ?, ?)
+            ''', [user_id, channel_id, guild_id, checkin_time, expires_at])
+        else:
+            async with aiosqlite.connect(self.db_path) as db:
+                # 先刪除舊的請求
+                await db.execute('''
+                    DELETE FROM gif_change_requests WHERE user_id = ? AND channel_id = ?
+                ''', (user_id, channel_id))
+                
+                # 插入新請求
+                await db.execute('''
+                    INSERT INTO gif_change_requests (user_id, channel_id, guild_id, checkin_time, expires_at)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (user_id, channel_id, guild_id, checkin_time, expires_at))
+                
+                await db.commit()
+        
+        return True
+    
+    async def get_gif_change_request(self, user_id: str, channel_id: str) -> Optional[Dict]:
+        """獲取並刪除 GIF 更換請求"""
+        from datetime import datetime
+        
+        if self.use_d1:
+            # 查詢請求
+            result = await self._execute_d1('''
+                SELECT * FROM gif_change_requests 
+                WHERE user_id = ? AND channel_id = ? AND expires_at > CURRENT_TIMESTAMP
+                ORDER BY id DESC LIMIT 1
+            ''', [user_id, channel_id])
+            
+            if result and result[0].get("results"):
+                row = result[0]["results"][0]
+                request_data = {
+                    "user_id": row.get("user_id"),
+                    "channel_id": row.get("channel_id"),
+                    "guild_id": row.get("guild_id"),
+                    "checkin_time": row.get("checkin_time")
+                }
+                
+                # 刪除請求
+                await self._execute_d1('''
+                    DELETE FROM gif_change_requests WHERE id = ?
+                ''', [row.get("id")])
+                
+                return request_data
+            return None
+        else:
+            async with aiosqlite.connect(self.db_path) as db:
+                # 查詢請求
+                async with db.execute('''
+                    SELECT * FROM gif_change_requests 
+                    WHERE user_id = ? AND channel_id = ? AND expires_at > datetime('now')
+                    ORDER BY id DESC LIMIT 1
+                ''', (user_id, channel_id)) as cursor:
+                    row = await cursor.fetchone()
+                    
+                    if row:
+                        request_data = {
+                            "user_id": row[1],
+                            "channel_id": row[2],
+                            "guild_id": row[3],
+                            "checkin_time": row[4]
+                        }
+                        
+                        # 刪除請求
+                        await db.execute('''
+                            DELETE FROM gif_change_requests WHERE id = ?
+                        ''', (row[0],))
+                        await db.commit()
+                        
+                        return request_data
+                    return None
+    
+    async def cleanup_expired_requests(self):
+        """清理過期的 GIF 更換請求"""
+        if self.use_d1:
+            await self._execute_d1('''
+                DELETE FROM gif_change_requests WHERE expires_at < CURRENT_TIMESTAMP
+            ''')
+        else:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute('''
+                    DELETE FROM gif_change_requests WHERE expires_at < datetime('now')
+                ''')
                 await db.commit()
     
     async def set_config(self, guild_id: str, channel_id: str, 
