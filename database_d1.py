@@ -193,14 +193,19 @@ class Database:
                 sql = "SELECT * FROM tags ORDER BY category, name"
                 result = await self._execute_d1(sql)
                 tags = []
-                for row in result:
-                    if "results" in row:
-                        for r in row["results"]:
-                            tags.append(Tag(
-                                r["id"], r["name"], r["category"], r["emoji"],
-                                r.get("description", ""), r.get("image_url", ""),
-                                r["created_at"], r["color"]
-                            ))
+                
+                if result and len(result) > 0 and "results" in result[0]:
+                    for r in result[0]["results"]:
+                        tags.append(Tag(
+                            r.get("id"),
+                            r.get("name"),
+                            r.get("category"),
+                            r.get("emoji"),
+                            r.get("description", ""),
+                            r.get("image_url", ""),
+                            r.get("created_at"),
+                            r.get("color", 5814783)
+                        ))
                 return tags
             except Exception as e:
                 print(f"❌ 獲取標籤失敗: {e}")

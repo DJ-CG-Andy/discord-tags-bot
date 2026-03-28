@@ -782,9 +782,27 @@ class AdvancedFeaturesView(View):
     
     @discord.ui.button(label="📥 導入歷史", style=discord.ButtonStyle.primary, emoji="📥")
     async def import_history(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """顯示導入歷史模態框"""
-        modal = ImportHistoryModal()
-        await interaction.response.send_modal(modal)
+        """顯示導入歷史視圖"""
+        guild_id = str(interaction.guild.id)
+        view = ImportHistoryView(guild_id)
+        
+        # 獲取伺服器的所有文字頻道
+        text_channels = [channel for channel in interaction.guild.text_channels]
+        if not text_channels:
+            await interaction.response.send_message("❌ 這個伺服器沒有文字頻道！")
+            return
+        
+        # 初始化頻道選項
+        view.initialize_options(text_channels)
+        
+        embed = discord.Embed(
+            title="📥 導入歷史",
+            description="選擇一個頻道來導入歷史訊息",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="💡 提示", value="請選擇頻道，然後輸入要導入的 emoji", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
     
     @discord.ui.button(label="📊 統計數據", style=discord.ButtonStyle.secondary, emoji="📊")
     async def show_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -836,8 +854,50 @@ class AdvancedFeaturesView(View):
 
 # ========== 導入歷史模態框 ==========
 
+class ImportHistoryView(View):
+    """導入歷史訊息的視圖"""
+    
+    def __init__(self, guild_id: str):
+        super().__init__(timeout=None)
+        self.guild_id = guild_id
+        self._initialized = False
+    
+    def initialize_options(self, text_channels):
+        """初始化頻道選項"""
+        if not self._initialized:
+            # 獲取 Select 組件
+            select = self.children[0]
+            select.options = [
+                discord.SelectOption(
+                    label=channel.name,
+                    value=str(channel.id),
+                    description=f"頻道 ID: {channel.id}"
+                )
+                for channel in text_channels
+            ]
+            self._initialized = True
+    
+    @discord.ui.select(
+        placeholder="選擇要導入的頻道",
+        min_values=1,
+        max_values=1,
+        custom_id="channel_select"
+    )
+    async def select_channel(self, interaction: discord.Interaction, select: discord.ui.Select):
+        """選擇頻道後顯示 emoji 輸入"""
+        channel_id = select.values[0]
+        
+        # 顯示 emoji 輸入模態框
+        modal = ImportHistoryModal(self.guild_id, channel_id)
+        await interaction.response.send_modal(modal)
+
 class ImportHistoryModal(Modal, title='導入歷史訊息'):
     """導入歷史訊息的模態框"""
+    
+    def __init__(self, guild_id: str, channel_id: str):
+        super().__init__()
+        self.guild_id = guild_id
+        self.channel_id = channel_id
     
     emoji = TextInput(
         label='導入訊息的emoji', 
@@ -846,12 +906,10 @@ class ImportHistoryModal(Modal, title='導入歷史訊息'):
         max_length=50,
         style=discord.TextStyle.short
     )
-    channel_name = TextInput(label='頻道名稱', placeholder='例如：general', required=True)
     
     async def on_submit(self, interaction: discord.Interaction):
         """提交導入歷史"""
         emoji_input = self.emoji.value.strip()
-        channel_name_input = self.channel_name.value.strip()
         
         # 標準化 emoji 輸入
         normalized_emoji = normalize_emoji(emoji_input)
@@ -873,10 +931,10 @@ class ImportHistoryModal(Modal, title='導入歷史訊息'):
             await interaction.response.send_message(f"❌ 找不到使用 Emoji `{emoji_input}` 的標籤，請先創建標籤！")
             return
         
-        # 查找頻道
-        channel = discord.utils.get(interaction.guild.text_channels, name=channel_name_input)
+        # 獲取頻道
+        channel = bot.get_channel(int(self.channel_id))
         if not channel:
-            await interaction.response.send_message(f"❌ 找不到頻道 `{channel_name_input}`！")
+            await interaction.response.send_message(f"❌ 找不到頻道！")
             return
         
         # 開始導入歷史
