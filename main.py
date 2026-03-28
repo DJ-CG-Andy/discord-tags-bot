@@ -7,6 +7,7 @@ import os
 import json
 from typing import Optional, List
 import uuid
+import asyncio
 
 # 根據環境變量選擇數據庫類型
 USE_D1 = os.getenv("USE_D1", "false").lower() == "true"
@@ -22,6 +23,8 @@ from tag_manager import TagManager
 from message_handler import MessageHandler
 from history_processor import HistoryProcessor
 from emoji_utils import compare_emoji, normalize_emoji, is_custom_emoji, display_emoji, set_embed_emoji
+from checkin_manager import CheckinManager
+from checkin_system import CheckinView, CheckinSettingsView, GifConfirmationView
 
 # 加載環境變量
 load_dotenv()
@@ -45,11 +48,15 @@ bot = commands.Bot(
     help_command=None
 )
 
+# 初始化簽到 GIF 等待狀態
+bot._waiting_for_gif = None
+
 # 初始化數據庫和管理器
 db = Database(os.getenv("DATABASE_PATH", "discord_tags.db"), use_d1=USE_D1)
 tag_manager = TagManager(db)
 message_handler = None
 history_processor = None
+checkin_manager = CheckinManager(os.getenv("DATABASE_PATH", "discord_tags.db"))
 
 # 命令鎖 - 防止重複執行
 _command_locks = {}
@@ -57,7 +64,69 @@ _command_locks = {}
 # 初始化標誌
 _initialized = False
 
+# 簽到系統標誌
+_checkin_initialized = False
+
 # ========== Emoji 偵測邏輯 ==========
+
+@bot.event
+async def on_message(message: discord.Message):
+    """處理訊息（用於處理簽到 GIF 更換）"""
+    # 忽略 bot 的訊息
+    if message.author.bot:
+        return
+    
+    # 處理簽到 GIF 更換
+    # 檢查是否正在等待用戶發送 GIF
+    if hasattr(bot, '_waiting_for_gif') and bot._waiting_for_gif:
+        user_id = str(message.author.id)
+        channel_id = str(message.channel.id)
+        
+        if bot._waiting_for_gif.get('user_id') == user_id and bot._waiting_for_gif.get('channel_id') == channel_id:
+            # 提取 GIF 連結
+            gif_url = None
+            if message.attachments:
+                for attachment in message.attachments:
+                    if attachment.content_type and 'image' in attachment.content_type:
+                        gif_url = attachment.url
+                        break
+            
+            if not gif_url:
+                # 檢查訊息內容是否包含連結
+                if message.content:
+                    import re
+                    urls = re.findall(r'(https?://\S+)', message.content)
+                    if urls:
+                        gif_url = urls[0]
+            
+            if gif_url:
+                # 更新配置
+                guild_id = bot._waiting_for_gif.get('guild_id')
+                await checkin_manager.set_config(
+                    guild_id,
+                    channel_id,
+                    bot._waiting_for_gif.get('checkin_time'),
+                    gif_url
+                )
+                
+                embed = discord.Embed(
+                    title="✅ GIF 已更新",
+                    description=f"簽到 GIF 已設置",
+                    color=discord.Color.green()
+                )
+                embed.set_image(url=gif_url)
+                embed.add_field(name="預覽", value="這就是新的簽到 GIF", inline=False)
+                
+                await message.reply(embed=embed)
+            else:
+                await message.reply("❌ 未檢測到有效的 GIF！請重新發送。")
+            
+            # 清除等待狀態
+            bot._waiting_for_gif = None
+            return
+    
+    # 確保其他命令繼續正常工作
+    await bot.process_commands(message)
 
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
@@ -200,6 +269,107 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
 
 # ========== Bot 啟動 ==========
 
+async def checkin_scheduler():
+    """簽到系統定時任務"""
+    await bot.wait_until_ready()
+    
+    while not bot.is_closed():
+        try:
+            now = datetime.now()
+            current_time = now.strftime("%H:%M")
+            current_date = now.strftime("%Y-%m-%d")
+            
+            # 檢查所有服務器的簽到配置
+            for guild in bot.guilds:
+                guild_id = str(guild.id)
+                config = await checkin_manager.get_config(guild_id)
+                
+                if config and config.checkin_time == current_time:
+                    # 發送簽到訊息
+                    channel = bot.get_channel(int(config.channel_id))
+                    if channel:
+                        view = CheckinView(checkin_manager, config.gif_url)
+                        embed = discord.Embed(
+                            title="✨ 每日簽到",
+                            description=f"今天是 {current_date}，點擊下方按鈕進行簽到！",
+                            color=discord.Color.gold()
+                        )
+                        
+                        if config.gif_url:
+                            embed.set_image(url=config.gif_url)
+                        
+                        message = await channel.send(embed=embed, view=view)
+                        
+                        # 釘選訊息
+                        await message.pin()
+                        
+                        # 發送總簽到次數排行榜
+                        leaderboard_total = await checkin_manager.get_leaderboard(guild_id, limit=10, by_streak=False)
+                        
+                        if leaderboard_total:
+                            embed = discord.Embed(
+                                title="📊 總簽到次數排行榜",
+                                color=discord.Color.gold()
+                            )
+                            
+                            description = ""
+                            for idx, entry in enumerate(leaderboard_total, 1):
+                                user_id = entry["user_id"]
+                                value = entry["value"]
+                                medal = ""
+                                if idx == 1:
+                                    medal = "🥇"
+                                elif idx == 2:
+                                    medal = "🥈"
+                                elif idx == 3:
+                                    medal = "🥉"
+                                else:
+                                    medal = f"{idx}."
+                                
+                                description += f"{medal} <@{user_id}>: {value} 次\n"
+                            
+                            embed.description = description
+                            embed.set_footer(text=f"更新時間: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+                            
+                            await channel.send(embed=embed)
+                        
+                        # 發送連續簽到排行榜
+                        leaderboard_streak = await checkin_manager.get_leaderboard(guild_id, limit=10, by_streak=True)
+                        
+                        if leaderboard_streak:
+                            embed = discord.Embed(
+                                title="🔥 連續簽到排行榜",
+                                color=discord.Color.orange()
+                            )
+                            
+                            description = ""
+                            for idx, entry in enumerate(leaderboard_streak, 1):
+                                user_id = entry["user_id"]
+                                value = entry["value"]
+                                medal = ""
+                                if idx == 1:
+                                    medal = "🥇"
+                                elif idx == 2:
+                                    medal = "🥈"
+                                elif idx == 3:
+                                    medal = "🥉"
+                                else:
+                                    medal = f"{idx}."
+                                
+                                description += f"{medal} <@{user_id}>: {value} 天\n"
+                            
+                            embed.description = description
+                            embed.set_footer(text=f"更新時間: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+                            
+                            await channel.send(embed=embed)
+            
+            # 每分鐘檢查一次
+            await asyncio.sleep(60)
+            
+        except Exception as e:
+            print(f"簽到定時任務錯誤: {e}")
+            await asyncio.sleep(60)
+
 @bot.event
 async def on_ready():
     """Bot 啟動時執行"""
@@ -211,13 +381,18 @@ async def on_ready():
     await db.init_db()
     print("✅ 數據庫初始化完成")
     
+    # 初始化簽到系統表
+    await checkin_manager.init_tables()
+    print("✅ 簽到系統初始化完成")
+    
     # 不初始化默認標籤，讓用戶自己創建
     print("✅ 標籤系統就緒（無預設標籤）")
     
     # 初始化處理器
-    global message_handler, history_processor
+    global message_handler, history_processor, _checkin_initialized
     message_handler = MessageHandler(bot, db, tag_manager)
     history_processor = HistoryProcessor(bot, db, tag_manager)
+    _checkin_initialized = True
     
     # 設置狀態
     await bot.change_presence(
@@ -230,6 +405,9 @@ async def on_ready():
     # 設置初始化標誌
     global _initialized
     _initialized = True
+    
+    # 啟動簽到系統定時任務
+    bot.loop.create_task(checkin_scheduler())
     
     # 清除舊的斜線命令
     try:
@@ -247,22 +425,51 @@ async def on_ready():
 class MainMenuView(View):
     """主選單 - 四個主要按鈕"""
     
-    def __init__(self):
+    def __init__(self, channel_id: Optional[str] = None):
         super().__init__(timeout=None)
+        self.channel_id = channel_id
+        self._add_checkin_button = False
     
-    @discord.ui.button(label="🏷️ 新增標籤", style=discord.ButtonStyle.primary, emoji="🏷️")
+    async def check_show_checkin(self):
+        """檢查是否應該顯示簽到按鈕"""
+        if not self.channel_id:
+            return False
+        
+        try:
+            # 獲取所有簽到配置
+            # 由於 CheckinManager 沒有獲取所有配置的方法，我們需要檢查當前服務器
+            # 這裡簡化處理：如果有任何配置，就假設當前頻道可能是簽到頻道
+            # 實際應該檢查配置中的 channel_id 是否等於當前 channel_id
+            config = await checkin_manager.get_config(str(self.channel_id))
+            return config is not None
+        except:
+            return False
+    
+    async def add_checkin_button_if_needed(self):
+        """如果需要，添加簽到按鈕"""
+        if await self.check_show_checkin():
+            # 清除現有按鈕
+            self.clear_items()
+            # 重新添加所有按鈕，包括簽到按鈕
+            self.add_item(discord.ui.Button(label="🏷️ 新增標籤", style=discord.ButtonStyle.primary, emoji="🏷️", custom_id="add_tag"))
+            self.add_item(discord.ui.Button(label="🔍 搜索標籤", style=discord.ButtonStyle.secondary, emoji="🔍", custom_id="search_tag"))
+            self.add_item(discord.ui.Button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋", custom_id="view_tags"))
+            self.add_item(discord.ui.Button(label="✨ 簽到設定", style=discord.ButtonStyle.success, emoji="✨", custom_id="checkin_settings"))
+            self.add_item(discord.ui.Button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features"))
+    
+    @discord.ui.button(label="🏷️ 新增標籤", style=discord.ButtonStyle.primary, emoji="🏷️", custom_id="add_tag")
     async def add_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示新增標籤模態框"""
         modal = AddTagModal()
         await interaction.response.send_modal(modal)
     
-    @discord.ui.button(label="🔍 搜索標籤", style=discord.ButtonStyle.secondary, emoji="🔍")
+    @discord.ui.button(label="🔍 搜索標籤", style=discord.ButtonStyle.secondary, emoji="🔍", custom_id="search_tag")
     async def search_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示搜索標籤模態框"""
         modal = SearchTagModal()
         await interaction.response.send_modal(modal)
     
-    @discord.ui.button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋")
+    @discord.ui.button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋", custom_id="view_tags")
     async def view_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示所有標籤"""
         try:
@@ -305,7 +512,23 @@ class MainMenuView(View):
             except:
                 await interaction.followup.send("❌ 查看標籤時發生錯誤")
     
-    @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥")
+    @discord.ui.button(label="✨ 簽到設定", style=discord.ButtonStyle.success, emoji="✨", custom_id="checkin_settings", row=1)
+    async def checkin_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示簽到設置菜單"""
+        guild_id = str(interaction.guild.id)
+        view = CheckinSettingsView(checkin_manager, guild_id)
+        embed = discord.Embed(
+            title="✨ 簽到設定",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="⏰ 調整時間", value="調整每日簽到的時間界限", inline=False)
+        embed.add_field(name="🖼️ 更換 GIF", value="更換簽到成功時顯示的 GIF", inline=False)
+        embed.add_field(name="📊 顯示排名", value="查看簽到排行榜", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+    
+    @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示進階功能菜單"""
         view = AdvancedFeaturesView()
@@ -660,7 +883,8 @@ class DeleteTagModal(Modal, title='刪除標籤'):
 @bot.command(name="menu")
 async def menu_command(ctx: commands.Context):
     """顯示主菜單"""
-    view = MainMenuView()
+    view = MainMenuView(channel_id=str(ctx.channel.id))
+    
     embed = discord.Embed(
         title="🎮 Discord 標籤系統",
         description="選擇一個操作：",
@@ -669,6 +893,12 @@ async def menu_command(ctx: commands.Context):
     embed.add_field(name="🏷️ 新增標籤", value="添加新的標籤", inline=False)
     embed.add_field(name="🔍 搜索標籤", value="搜索帶有標籤的消息", inline=False)
     embed.add_field(name="📋 查看標籤", value="查看所有可用標籤", inline=False)
+    
+    # 檢查是否在簽到頻道
+    config = await checkin_manager.get_config(str(ctx.guild.id))
+    if config and config.channel_id == str(ctx.channel.id):
+        embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
+    
     embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
     
     await ctx.send(embed=embed, view=view)
@@ -697,6 +927,89 @@ async def status_command(ctx: commands.Context):
 async def test_command(ctx: commands.Context):
     """測試命令"""
     await ctx.send("✅ 測試成功（新版本 v3.0）")
+
+# ========== 簽到系統命令 ==========
+
+@bot.command(name="setcheckin")
+async def set_checkin_command(ctx: commands.Context, time: str = "00:00", gif_url: str = ""):
+    """設置簽到系統
+    用法: !setcheckin [時間] [GIF連結]
+    時間格式: HH:MM (例如: 00:00)
+    """
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.send("❌ 只有管理員可以設置簽到系統")
+        return
+    
+    # 驗證時間格式
+    try:
+        datetime.strptime(time, "%H:%M")
+    except ValueError:
+        await ctx.send("❌ 時間格式錯誤！請使用 HH:MM 格式（例如: 00:00）")
+        return
+    
+    # 設置配置
+    success = await checkin_manager.set_config(
+        str(ctx.guild.id),
+        str(ctx.channel.id),
+        time,
+        gif_url
+    )
+    
+    if success:
+        embed = discord.Embed(
+            title="✅ 簽到系統已設置",
+            description=f"簽到系統已在此頻道設置",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="簽到頻道", value=f"<#{ctx.channel.id}>", inline=True)
+        embed.add_field(name="簽到時間", value=time, inline=True)
+        if gif_url:
+            embed.set_image(url=gif_url)
+            embed.add_field(name="簽到 GIF", value="已設置", inline=True)
+        embed.add_field(name="注意", value="每天會在設定的時間自動發送簽到訊息", inline=False)
+        
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send("❌ 設置失敗")
+
+@bot.command(name="checkin")
+async def checkin_command(ctx: commands.Context):
+    """手動發送簽到訊息（測試用）"""
+    if not ctx.author.guild_permissions.administrator:
+        await ctx.send("❌ 只有管理員可以手動發送簽到訊息")
+        return
+    
+    config = await checkin_manager.get_config(str(ctx.guild.id))
+    if not config:
+        await ctx.send("❌ 還沒有設置簽到系統！請使用 `!setcheckin` 設置")
+        return
+    
+    # 發送簽到訊息
+    view = CheckinView(checkin_manager, config.gif_url)
+    embed = discord.Embed(
+        title="✨ 每日簽到",
+        description="點擊下方按鈕進行簽到！",
+        color=discord.Color.gold()
+    )
+    
+    if config.gif_url:
+        embed.set_image(url=config.gif_url)
+    
+    message = await ctx.send(embed=embed, view=view)
+    
+    # 釘選訊息
+    await message.pin()
+
+@bot.command(name="leaderboard")
+async def leaderboard_command(ctx: commands.Context):
+    """顯示簽到排行榜"""
+    view = LeaderboardView(checkin_manager, str(ctx.guild.id))
+    embed = discord.Embed(
+        title="📊 簽到排行榜",
+        description="請選擇排行榜類型",
+        color=discord.Color.gold()
+    )
+    await ctx.send(embed=embed, view=view)
 
 # ========== 運行 Bot ==========
 
