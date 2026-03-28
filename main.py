@@ -1057,7 +1057,7 @@ class AdvancedFeaturesView(View):
     @discord.ui.button(label="🔙 返回主菜單", style=discord.ButtonStyle.secondary)
     async def back_to_menu(self, interaction: discord.Interaction, button: discord.ui.Button):
         """返回主菜單"""
-        view = MainMenuView()
+        view = BackToMenuView(guild_id=self.guild_id, channel_id=self.channel_id)
         embed = discord.Embed(
             title="🎮 Discord 標籤系統",
             description="選擇一個操作：",

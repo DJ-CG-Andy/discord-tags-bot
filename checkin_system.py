@@ -263,8 +263,8 @@ class CheckinSettingsView(View):
     
     @discord.ui.button(label="🔙 返回", style=discord.ButtonStyle.secondary)
     async def back_to_menu(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from main import MainMenuView
-        view = MainMenuView()
+        from main import BackToMenuView
+        view = BackToMenuView(guild_id=self.guild_id, channel_id=str(interaction.channel.id))
         embed = discord.Embed(
             title="🎮 Discord 標籤系統",
             description="選擇一個操作：",
