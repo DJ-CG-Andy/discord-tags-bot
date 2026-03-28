@@ -58,7 +58,8 @@ bot = commands.Bot(
 bot._waiting_for_gif = None
 
 # 數據庫路徑配置
-DB_PATH = os.getenv("DATABASE_PATH", "discord_tags.db")
+# Render 上使用固定路徑，避免環境變量問題
+DB_PATH = "discord_tags.db"
 
 # 初始化數據庫和管理器
 if USE_D1:
