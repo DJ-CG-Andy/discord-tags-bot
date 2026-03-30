@@ -125,6 +125,7 @@ async def on_message(message: discord.Message):
     print(f"🔵 頻道: {message.channel.name} (ID: {message.channel.id})", flush=True)
     print(f"📝 訊息內容: {message.content[:100] if message.content else '(無文字)'}", flush=True)
     print(f"📎 附件數量: {len(message.attachments)}", flush=True)
+    print(f"🎭 貼圖數量: {len(message.stickers)}", flush=True)
     
     # 處理簽到 GIF 更換
     # 檢查資料庫中是否有 GIF 更換請求
@@ -148,6 +149,13 @@ async def on_message(message: discord.Message):
                     gif_url = attachment.url
                     print(f"✅ 從附件獲取到 URL: {gif_url}", flush=True)
                     break
+        
+        # 檢查貼圖
+        if not gif_url and message.stickers:
+            print(f"🔍 檢查 {len(message.stickers)} 個貼圖", flush=True)
+            sticker = message.stickers[0]
+            gif_url = sticker.url
+            print(f"✅ 從貼圖獲取到 URL: {gif_url}", flush=True)
         
         if not gif_url:
             # 檢查訊息內容是否包含連結
@@ -227,7 +235,16 @@ async def on_message(message: discord.Message):
                                     print(f"🔍 從附件提取到 GIF ID: {sent_gif_id}", flush=True)
                                 break
                     
-                    # 檢查訊息內容（即使已經從附件獲取了 URL，也要檢查內容中的 ID）
+                    # 檢查貼圖
+                    if not sent_gif_url and message.stickers:
+                        print(f"🔍 檢查 {len(message.stickers)} 個貼圖", flush=True)
+                        sticker = message.stickers[0]
+                        sent_gif_url = sticker.url
+                        sent_gif_id = str(sticker.id)
+                        print(f"🔍 從貼圖獲取到 URL: {sent_gif_url}", flush=True)
+                        print(f"🔍 從貼圖提取到 GIF ID: {sent_gif_id}", flush=True)
+                    
+                    # 檢查訊息內容（即使已經從附件或貼圖獲取了 URL，也要檢查內容中的 ID）
                     if message.content:
                         import re
                         
@@ -308,7 +325,7 @@ async def on_message(message: discord.Message):
                             embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
                             embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
                             embed.add_field(name="簽到時間", value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), inline=False)
-                            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF 都可以簽到", inline=False)
+                            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF/貼圖都可以簽到", inline=False)
                             embed.set_footer(text=f"明天同一時間再來簽到吧！")
                             
                             await message.reply(embed=embed)
@@ -322,7 +339,7 @@ async def on_message(message: discord.Message):
                             )
                             embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
                             embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
-                            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF 都可以簽到", inline=False)
+                            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF/貼圖都可以簽到", inline=False)
                             embed.add_field(name="明天再來", value="明天 00:00 後可以再次簽到", inline=False)
                             embed.set_footer(text=f"明天同一時間再來簽到吧！")
                             

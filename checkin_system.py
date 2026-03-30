@@ -40,7 +40,7 @@ class CheckinButton(discord.ui.Button):
             embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
             embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
             embed.add_field(name="簽到時間", value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), inline=False)
-            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF 都可以簽到", inline=False)
+            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF/貼圖都可以簽到", inline=False)
             embed.set_footer(text=f"明天同一時間再來簽到吧！")
             
             await interaction.response.send_message(embed=embed)
@@ -54,7 +54,7 @@ class CheckinButton(discord.ui.Button):
             )
             embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
             embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
-            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF 都可以簽到", inline=False)
+            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF/貼圖都可以簽到", inline=False)
             embed.add_field(name="明天再來", value="明天 00:00 後可以再次簽到", inline=False)
             embed.set_footer(text=f"明天同一時間再來簽到吧！")
             
@@ -113,8 +113,8 @@ class CheckinConfigModal(Modal, title="調整簽到時間"):
 
 class SetGifModal(Modal, title="設置簽到 GIF"):
     """設置簽到 GIF 模態框"""
-    gif_url = TextInput(label="GIF 連結", placeholder="輸入 GIF 連結", required=True, style=discord.TextStyle.paragraph)
-    gif_id = TextInput(label="GIF ID", placeholder="輸入 GIF ID（選填，用於簽到偵測）", required=False, style=discord.TextStyle.short)
+    gif_url = TextInput(label="GIF 連結", placeholder="輸入 GIF 連結（可以包含貼圖）", required=True, style=discord.TextStyle.paragraph)
+    gif_id = TextInput(label="GIF ID", placeholder="輸入 GIF 或貼圖 ID（選填，用於簽到偵測）", required=False, style=discord.TextStyle.short)
     
     def __init__(self, checkin_manager: CheckinManager, guild_id: str):
         super().__init__()
@@ -150,6 +150,7 @@ class SetGifModal(Modal, title="設置簽到 GIF"):
         info_text = "這就是新的簽到 GIF"
         if gif_id:
             info_text += f"\n\nGIF ID: `{gif_id}`（用於簽到偵測）"
+        info_text += "\n\n💡 提示：也可以使用 Discord 貼圖來設置簽到 GIF"
         
         embed.add_field(name="預覽", value=info_text, inline=False)
         
@@ -340,6 +341,7 @@ class GifConfirmationView(View):
         embed.add_field(name="1. GIF 連結", value="直接發送 GIF 連結（例如：https://discord.com/...）", inline=False)
         embed.add_field(name="2. GIF ID", value="只發送 GIF ID（例如：123456789012345678）", inline=False)
         embed.add_field(name="3. 上傳 GIF", value="直接上傳 GIF 圖片", inline=False)
+        embed.add_field(name="4. Discord 貼圖", value="直接發送 Discord 貼圖（貼圖也可以用來簽到）", inline=False)
         embed.add_field(name="⏰ 有效時間", value="2 分鐘", inline=False)
         
         await interaction.response.edit_message(embed=embed, view=None)
