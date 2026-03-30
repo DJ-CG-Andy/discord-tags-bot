@@ -115,7 +115,7 @@ _checkin_initialized = False
 
 @bot.event
 async def on_message(message: discord.Message):
-    """處理訊息（用於處理簽到 GIF 更換）"""
+    """處理訊息（用於處理簽到 GIF 更換和 GIF 觸發簽到）"""
     # 忽略 bot 的訊息
     if message.author.bot:
         return
@@ -130,6 +130,7 @@ async def on_message(message: discord.Message):
     # 檢查資料庫中是否有 GIF 更換請求
     user_id = str(message.author.id)
     channel_id = str(message.channel.id)
+    guild_id = str(message.guild.id) if message.guild else None
     
     print(f"🔍 檢查資料庫中的 GIF 更換請求...", flush=True)
     gif_request = await checkin_manager.get_gif_change_request(user_id, channel_id)
@@ -192,6 +193,89 @@ async def on_message(message: discord.Message):
             print(f"✅ 錯誤回復已發送", flush=True)
     else:
         print(f"🔍 沒有找到 GIF 更換請求", flush=True)
+        
+        # 處理 GIF 觸發簽到
+        if guild_id and channel_id:
+            print(f"🔍 檢查是否為簽到頻道...", flush=True)
+            config = await checkin_manager.get_config(guild_id)
+            
+            if config and str(config.get('channel_id')) == channel_id:
+                print(f"✅ 這是簽到頻道", flush=True)
+                gif_url = config.get('gif_url', '')
+                
+                if gif_url:
+                    print(f"🔍 檢查用戶是否發送了簽到 GIF...", flush=True)
+                    
+                    # 檢查用戶是否發送了設定的 GIF
+                    sent_gif_url = None
+                    
+                    # 檢查附件
+                    if message.attachments:
+                        for attachment in message.attachments:
+                            if attachment.content_type and 'image' in attachment.content_type:
+                                sent_gif_url = attachment.url
+                                break
+                    
+                    # 檢查訊息內容
+                    if not sent_gif_url and message.content:
+                        import re
+                        urls = re.findall(r'(https?://\S+)', message.content)
+                        if urls:
+                            sent_gif_url = urls[0]
+                    
+                    # 比較 URL（忽略查詢參數）
+                    if sent_gif_url:
+                        from urllib.parse import urlparse
+                        sent_parsed = urlparse(sent_gif_url)
+                        config_parsed = urlparse(gif_url)
+                        
+                        is_match = (
+                            sent_parsed.path == config_parsed.path and
+                            sent_parsed.netloc == config_parsed.netloc
+                        )
+                        
+                        if is_match:
+                            print(f"✅ 用戶發送了簽到 GIF", flush=True)
+                            
+                            # 執行簽到
+                            success, total, streak = await checkin_manager.checkin(user_id, guild_id)
+                            
+                            if success:
+                                # 簽到成功
+                                embed = discord.Embed(
+                                    title="✨ 簽到成功！",
+                                    description=f"恭喜 <@{user_id}> 簽到成功！",
+                                    color=discord.Color.green()
+                                )
+                                
+                                # 顯示 GIF
+                                embed.set_image(url=gif_url)
+                                
+                                embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
+                                embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
+                                embed.set_footer(text=f"簽到時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                                
+                                await message.reply(embed=embed)
+                                print(f"✅ 簽到成功回復已發送", flush=True)
+                            else:
+                                # 今天已經簽到過
+                                embed = discord.Embed(
+                                    title="⚠️ 已簽到",
+                                    description=f"<@{user_id}> 你今天已經簽到過了！",
+                                    color=discord.Color.orange()
+                                )
+                                embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
+                                embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
+                                embed.add_field(name="明天再來", value="明天 00:00 後可以再次簽到", inline=False)
+                                
+                                await message.reply(embed=embed)
+                                print(f"✅ 已簽到回復已發送", flush=True)
+                        else:
+                            print(f"🔍 用戶發送的 GIF 不匹配簽到 GIF", flush=True)
+                    else:
+                        print(f"🔍 用戶沒有發送 GIF", flush=True)
+            else:
+                print(f"🔍 不是簽到頻道或沒有簽到配置", flush=True)
     
     # 確保其他命令繼續正常工作
     await bot.process_commands(message)

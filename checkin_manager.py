@@ -323,8 +323,11 @@ class CheckinManager:
         用戶簽到
         返回: (是否成功, 總簽到次數, 連續簽到天數)
         """
-        today = datetime.now().strftime("%Y-%m-%d")
-        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        # 使用 UTC 時間以避免時區問題
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        yesterday = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        print(f"🔍 簽到檢查 - 用戶: {user_id}, 今天(UTC): {today}", flush=True)
         
         if self.use_d1:
             # 檢查今天是否已經簽到
@@ -335,10 +338,13 @@ class CheckinManager:
             if result and result.get("success") and result.get("result"):
                 results = result["result"][0].get("results", [])
                 if results:
+                    print(f"🔍 用戶 {user_id} 今天已經簽到過", flush=True)
                     # 今天已經簽到過
                     total_count = await self.get_total_checkins(user_id, guild_id)
                     streak = await self.get_streak(user_id, guild_id)
                     return (False, total_count, streak)
+            
+            print(f"🔍 用戶 {user_id} 今天尚未簽到", flush=True)
             
             # 檢查昨天是否簽到
             result = await self._execute_d1('''
@@ -351,18 +357,23 @@ class CheckinManager:
                     # 昨天簽到了，連續天數 +1
                     yesterday_record = results[0]
                     streak = yesterday_record.get("streak_days", 0) + 1
+                    print(f"🔍 用戶 {user_id} 昨天簽到了，連續天數: {streak}", flush=True)
                 else:
                     # 昨天沒簽到，連續天數 = 1
                     streak = 1
+                    print(f"🔍 用戶 {user_id} 昨天沒簽到，連續天數: 1", flush=True)
             else:
                 # 昨天沒簽到，連續天數 = 1
                 streak = 1
+                print(f"🔍 用戶 {user_id} 昨天沒簽到，連續天數: 1", flush=True)
             
             # 創建簽到記錄
             await self._execute_d1('''
                 INSERT INTO checkin_records (user_id, guild_id, checkin_date, streak_days)
                 VALUES (?, ?, ?, ?)
             ''', [user_id, guild_id, today, streak])
+            
+            print(f"🔍 用戶 {user_id} 簽到成功，連續天數: {streak}", flush=True)
             
             # 獲取總簽到次數
             total_count = await self.get_total_checkins(user_id, guild_id)
@@ -472,14 +483,17 @@ class CheckinManager:
     
     async def has_checked_today(self, user_id: str, guild_id: str) -> bool:
         """檢查今天是否已經簽到"""
-        today = datetime.now().strftime("%Y-%m-%d")
+        # 使用 UTC 時間以避免時區問題
+        today = datetime.utcnow().strftime("%Y-%m-%d")
         
         if self.use_d1:
             result = await self._execute_d1('''
                 SELECT * FROM checkin_records WHERE user_id = ? AND guild_id = ? AND checkin_date = ?
             ''', [user_id, guild_id, today])
             
-            return result and result.get("success") and result.get("result") and result["result"][0].get("results") is not None
+            has_checked = result and result.get("success") and result.get("result") and result["result"][0].get("results") is not None
+            print(f"🔍 has_checked_today - 用戶: {user_id}, 今天(UTC): {today}, 已簽到: {has_checked}", flush=True)
+            return has_checked
         else:
             async with aiosqlite.connect(self.db_path) as db:
                 async with db.execute(

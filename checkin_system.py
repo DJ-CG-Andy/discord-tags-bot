@@ -20,6 +20,8 @@ class CheckinButton(discord.ui.Button):
         user_id = str(interaction.user.id)
         guild_id = str(interaction.guild.id)
         
+        print(f"🔍 簽到按鈕被點擊 - 用戶: {user_id}", flush=True)
+        
         # 執行簽到
         success, total, streak = await self.checkin_manager.checkin(user_id, guild_id)
         
@@ -31,7 +33,7 @@ class CheckinButton(discord.ui.Button):
                 color=discord.Color.green()
             )
             
-            # 顯示 GIF
+            # 顯示 GIF（如果有設置）
             if self.gif_url:
                 embed.set_image(url=self.gif_url)
             
@@ -40,6 +42,7 @@ class CheckinButton(discord.ui.Button):
             embed.set_footer(text=f"簽到時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
             await interaction.response.send_message(embed=embed)
+            print(f"✅ 簽到成功回復已發送", flush=True)
         else:
             # 今天已經簽到過
             embed = discord.Embed(
@@ -52,6 +55,7 @@ class CheckinButton(discord.ui.Button):
             embed.add_field(name="明天再來", value="明天 00:00 後可以再次簽到", inline=False)
             
             await interaction.response.send_message(embed=embed)
+            print(f"✅ 已簽到回復已發送", flush=True)
 
 class CheckinView(View):
     """簽到視圖"""
