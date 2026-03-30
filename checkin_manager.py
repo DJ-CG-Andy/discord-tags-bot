@@ -243,54 +243,53 @@ class CheckinManager:
                 await db.commit()
     
     async def set_config(self, guild_id: str, channel_id: str, 
-                        checkin_time: str = "00:00", gif_url: str = "") -> bool:
-        """設置簽到配置"""
-        if self.use_d1:
-            # 先嘗試插入
-            result = await self._execute_d1('''
-                INSERT INTO checkin_config (guild_id, channel_id, checkin_time, gif_url)
-                VALUES (?, ?, ?, ?)
-            ''', [guild_id, channel_id, checkin_time, gif_url])
-            
-            # 檢查是否成功
-            if result and result.get("success"):
-                print(f"✅ 簽到配置已創建: guild_id={guild_id}, channel_id={channel_id}", flush=True)
-                return True
-            
-            # 如果失敗（因為已存在），則更新
-            print(f"📝 簽到配置已存在，正在更新: guild_id={guild_id}", flush=True)
-            result = await self._execute_d1('''
-                UPDATE checkin_config 
-                SET channel_id = ?, checkin_time = ?, gif_url = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE guild_id = ?
-            ''', [channel_id, checkin_time, gif_url, guild_id])
-            
-            if result and result.get("success"):
-                print(f"✅ 簽到配置已更新: guild_id={guild_id}, channel_id={channel_id}", flush=True)
-                return True
+                        checkin_time: str = "00:00", gif_url: str = "", gif_id: str = "") -> bool:
+            """設置簽到配置"""
+            if self.use_d1:
+                # 先嘗試插入
+                result = await self._execute_d1('''
+                    INSERT INTO checkin_config (guild_id, channel_id, checkin_time, gif_url, gif_id)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', [guild_id, channel_id, checkin_time, gif_url, gif_id])
+                
+                # 檢查是否成功
+                if result and result.get("success"):
+                    print(f"✅ 簽到配置已創建: guild_id={guild_id}, channel_id={channel_id}", flush=True)
+                    return True
+                
+                # 如果失敗（因為已存在），則更新
+                print(f"📝 簽到配置已存在，正在更新: guild_id={guild_id}", flush=True)
+                result = await self._execute_d1('''
+                    UPDATE checkin_config 
+                    SET channel_id = ?, checkin_time = ?, gif_url = ?, gif_id = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE guild_id = ?
+                ''', [channel_id, checkin_time, gif_url, gif_id, guild_id])
+                
+                if result and result.get("success"):
+                    print(f"✅ 簽到配置已更新: guild_id={guild_id}, channel_id={channel_id}", flush=True)
+                    return True
+                else:
+                    print(f"❌ 簽到配置更新失敗: {result}", flush=True)
+                    return False
             else:
-                print(f"❌ 簽到配置更新失敗: {result}", flush=True)
-                return False
-        else:
-            async with aiosqlite.connect(self.db_path) as db:
-                try:
-                    await db.execute('''
-                        INSERT INTO checkin_config (guild_id, channel_id, checkin_time, gif_url)
-                        VALUES (?, ?, ?, ?)
-                    ''', (guild_id, channel_id, checkin_time, gif_url))
-                    await db.commit()
-                    print(f"✅ SQLite 簽到配置已創建: guild_id={guild_id}, channel_id={channel_id}", flush=True)
-                except aiosqlite.IntegrityError:
-                    await db.execute('''
-                        UPDATE checkin_config 
-                        SET channel_id = ?, checkin_time = ?, gif_url = ?, updated_at = CURRENT_TIMESTAMP
-                        WHERE guild_id = ?
-                    ''', (channel_id, checkin_time, gif_url, guild_id))
-                    await db.commit()
-                    print(f"✅ SQLite 簽到配置已更新: guild_id={guild_id}, channel_id={channel_id}", flush=True)
-        
-        return True
-    
+                async with aiosqlite.connect(self.db_path) as db:
+                    try:
+                        await db.execute('''
+                            INSERT INTO checkin_config (guild_id, channel_id, checkin_time, gif_url, gif_id)
+                            VALUES (?, ?, ?, ?, ?)
+                        ''', (guild_id, channel_id, checkin_time, gif_url, gif_id))
+                        await db.commit()
+                        print(f"✅ SQLite 簽到配置已創建: guild_id={guild_id}, channel_id={channel_id}", flush=True)
+                    except aiosqlite.IntegrityError:
+                        await db.execute('''
+                            UPDATE checkin_config 
+                            SET channel_id = ?, checkin_time = ?, gif_url = ?, gif_id = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE guild_id = ?
+                        ''', (channel_id, checkin_time, gif_url, gif_id, guild_id))
+                        await db.commit()
+                        print(f"✅ SQLite 簽到配置已更新: guild_id={guild_id}, channel_id={channel_id}", flush=True)
+            
+            return True    
     async def get_config(self, guild_id: str) -> Optional[Dict]:
         """獲取簽到配置"""
         if self.use_d1:
@@ -309,6 +308,7 @@ class CheckinManager:
                         "channel_id": row.get("channel_id"),
                         "checkin_time": row.get("checkin_time") or "00:00",
                         "gif_url": row.get("gif_url") or "",
+                        "gif_id": row.get("gif_id") or "",
                         "created_at": row.get("created_at"),
                         "updated_at": row.get("updated_at")
                     }
@@ -327,8 +327,9 @@ class CheckinManager:
                             "channel_id": row[2],
                             "checkin_time": row[3],
                             "gif_url": row[4],
-                            "created_at": row[5],
-                            "updated_at": row[6]
+                            "gif_id": row[5] if len(row) > 5 else "",
+                            "created_at": row[6] if len(row) > 6 else "",
+                            "updated_at": row[7] if len(row) > 7 else ""
                         }
                     return None
     

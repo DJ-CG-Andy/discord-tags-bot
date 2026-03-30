@@ -110,6 +110,7 @@ class CheckinConfigModal(Modal, title="調整簽到時間"):
 class SetGifModal(Modal, title="設置簽到 GIF"):
     """設置簽到 GIF 模態框"""
     gif_url = TextInput(label="GIF 連結", placeholder="輸入 GIF 連結", required=True, style=discord.TextStyle.paragraph)
+    gif_id = TextInput(label="GIF ID", placeholder="輸入 GIF ID（選填，用於簽到偵測）", required=False, style=discord.TextStyle.short)
     
     def __init__(self, checkin_manager: CheckinManager, guild_id: str):
         super().__init__()
@@ -118,6 +119,7 @@ class SetGifModal(Modal, title="設置簽到 GIF"):
     
     async def on_submit(self, interaction: discord.Interaction):
         gif_url = self.gif_url.value.strip()
+        gif_id = self.gif_id.value.strip() if self.gif_id.value.strip() else ""
         
         # 獲取當前配置
         config = await self.checkin_manager.get_config(self.guild_id)
@@ -130,7 +132,8 @@ class SetGifModal(Modal, title="設置簽到 GIF"):
             self.guild_id, 
             config['channel_id'], 
             config['checkin_time'], 
-            gif_url
+            gif_url,
+            gif_id
         )
         
         embed = discord.Embed(
@@ -139,7 +142,12 @@ class SetGifModal(Modal, title="設置簽到 GIF"):
             color=discord.Color.green()
         )
         embed.set_image(url=gif_url)
-        embed.add_field(name="預覽", value="這就是新的簽到 GIF", inline=False)
+        
+        info_text = "這就是新的簽到 GIF"
+        if gif_id:
+            info_text += f"\n\nGIF ID: `{gif_id}`（用於簽到偵測）"
+        
+        embed.add_field(name="預覽", value=info_text, inline=False)
         
         await interaction.response.send_message(embed=embed)
 
