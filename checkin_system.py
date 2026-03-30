@@ -187,7 +187,7 @@ class LeaderboardSelect(Select):
         )
         
         description = ""
-        current_rank = 1
+        rank_counter = 1  # 實際排名計數器
         last_value = None
         
         for idx, entry in enumerate(leaderboard, 1):
@@ -196,23 +196,24 @@ class LeaderboardSelect(Select):
             
             # 計算排名（同次數同排名）
             if idx == 1:
-                current_rank = 1
+                rank_counter = 1
             elif value != last_value:
-                current_rank = idx
+                rank_counter = idx
             
             last_value = value
             
             medal = ""
-            if current_rank == 1:
+            if rank_counter == 1:
                 medal = "🥇"
-            elif current_rank == 2:
+            elif rank_counter == 2:
                 medal = "🥈"
-            elif current_rank == 3:
+            elif rank_counter == 3:
                 medal = "🥉"
             else:
-                medal = f"{current_rank}."
+                medal = f"{rank_counter}."
             
             description += f"{medal} <@{user_id}>: {value}\n"
+            print(f"🔍 排名 {rank_counter}: 用戶 {user_id}, 值: {value}, 索引: {idx}", flush=True)
         
         embed.description = description
         embed.set_footer(text=f"更新時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
