@@ -39,7 +39,9 @@ class CheckinButton(discord.ui.Button):
             
             embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
             embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
-            embed.set_footer(text=f"簽到時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            embed.add_field(name="簽到時間", value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), inline=False)
+            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF 都可以簽到", inline=False)
+            embed.set_footer(text=f"明天同一時間再來簽到吧！")
             
             await interaction.response.send_message(embed=embed)
             print(f"✅ 簽到成功回復已發送", flush=True)
@@ -52,7 +54,9 @@ class CheckinButton(discord.ui.Button):
             )
             embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
             embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
+            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF 都可以簽到", inline=False)
             embed.add_field(name="明天再來", value="明天 00:00 後可以再次簽到", inline=False)
+            embed.set_footer(text=f"明天同一時間再來簽到吧！")
             
             await interaction.response.send_message(embed=embed)
             print(f"✅ 已簽到回復已發送", flush=True)
@@ -329,10 +333,13 @@ class GifConfirmationView(View):
         # 讓用戶發送 GIF
         embed = discord.Embed(
             title="📤 發送新的 GIF",
-            description="請在此訊息下方發送新的 GIF 連結或圖片",
+            description="請在此訊息下方發送新的 GIF",
             color=discord.Color.blue()
         )
-        embed.add_field(name="提示", value="你可以直接發送 GIF 連結，或者上傳圖片", inline=False)
+        embed.add_field(name="發送方式", value="你可以使用以下任一方式：", inline=False)
+        embed.add_field(name="1. GIF 連結", value="直接發送 GIF 連結（例如：https://discord.com/...）", inline=False)
+        embed.add_field(name="2. GIF ID", value="只發送 GIF ID（例如：123456789012345678）", inline=False)
+        embed.add_field(name="3. 上傳 GIF", value="直接上傳 GIF 圖片", inline=False)
         embed.add_field(name="⏰ 有效時間", value="2 分鐘", inline=False)
         
         await interaction.response.edit_message(embed=embed, view=None)

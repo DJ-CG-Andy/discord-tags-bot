@@ -227,18 +227,29 @@ async def on_message(message: discord.Message):
                                     print(f"🔍 從附件提取到 GIF ID: {sent_gif_id}", flush=True)
                                 break
                     
-                    # 檢查訊息內容
-                    if not sent_gif_url and message.content:
+                    # 檢查訊息內容（即使已經從附件獲取了 URL，也要檢查內容中的 ID）
+                    if message.content:
                         import re
-                        urls = re.findall(r'(https?://\S+)', message.content)
-                        if urls:
-                            sent_gif_url = urls[0]
-                            print(f"🔍 從訊息內容獲取到 URL: {sent_gif_url}", flush=True)
-                            # 從 URL 中提取 ID
-                            id_match = re.search(r'/(\d{16,})', sent_gif_url)
-                            if id_match:
-                                sent_gif_id = id_match.group(1)
-                                print(f"🔍 從訊息內容提取到 GIF ID: {sent_gif_id}", flush=True)
+                        
+                        # 檢查是否是純 ID（訊息內容只有數字）
+                        content_stripped = message.content.strip()
+                        if re.match(r'^\d{16,}$', content_stripped):
+                            # 這是一個純 ID
+                            if not sent_gif_id:
+                                sent_gif_id = content_stripped
+                                print(f"🔍 從訊息內容提取到純 GIF ID: {sent_gif_id}", flush=True)
+                        else:
+                            # 檢查是否有 URL
+                            urls = re.findall(r'(https?://\S+)', message.content)
+                            if urls:
+                                if not sent_gif_url:
+                                    sent_gif_url = urls[0]
+                                    print(f"🔍 從訊息內容獲取到 URL: {sent_gif_url}", flush=True)
+                                # 從 URL 中提取 ID
+                                id_match = re.search(r'/(\d{16,})', urls[0])
+                                if id_match and not sent_gif_id:
+                                    sent_gif_id = id_match.group(1)
+                                    print(f"🔍 從訊息內容提取到 GIF ID: {sent_gif_id}", flush=True)
                     
                     print(f"🔍 用戶發送的 GIF URL: {sent_gif_url}", flush=True)
                     print(f"🔍 用戶發送的 GIF ID: {sent_gif_id}", flush=True)
@@ -296,7 +307,9 @@ async def on_message(message: discord.Message):
                             
                             embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
                             embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
-                            embed.set_footer(text=f"簽到時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                            embed.add_field(name="簽到時間", value=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), inline=False)
+                            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF 都可以簽到", inline=False)
+                            embed.set_footer(text=f"明天同一時間再來簽到吧！")
                             
                             await message.reply(embed=embed)
                             print(f"✅ 簽到成功回復已發送", flush=True)
@@ -309,7 +322,9 @@ async def on_message(message: discord.Message):
                             )
                             embed.add_field(name="總簽到次數", value=f"📊 {total} 次", inline=True)
                             embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
+                            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF 都可以簽到", inline=False)
                             embed.add_field(name="明天再來", value="明天 00:00 後可以再次簽到", inline=False)
+                            embed.set_footer(text=f"明天同一時間再來簽到吧！")
                             
                             await message.reply(embed=embed)
                             print(f"✅ 已簽到回復已發送", flush=True)
