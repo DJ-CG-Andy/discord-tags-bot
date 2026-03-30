@@ -1955,6 +1955,10 @@ if __name__ == "__main__":
     http_thread = Thread(target=start_http_server, daemon=True)
     http_thread.start()
     
+    # 等待 HTTP 服務器完全啟動
+    import time
+    time.sleep(2)
+    
     # 啟動 Bot
     print("🚀 正在啟動 Discord 標籤系統 Bot...")
     print("🤖 啟動 Discord Bot...")
