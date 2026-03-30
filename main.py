@@ -205,6 +205,7 @@ async def on_message(message: discord.Message):
                 
                 if gif_url:
                     print(f"🔍 檢查用戶是否發送了簽到 GIF...", flush=True)
+                    print(f"🔍 設定的 GIF URL: {gif_url}", flush=True)
                     
                     # 檢查用戶是否發送了設定的 GIF
                     sent_gif_url = None
@@ -214,6 +215,7 @@ async def on_message(message: discord.Message):
                         for attachment in message.attachments:
                             if attachment.content_type and 'image' in attachment.content_type:
                                 sent_gif_url = attachment.url
+                                print(f"🔍 從附件獲取到 URL: {sent_gif_url}", flush=True)
                                 break
                     
                     # 檢查訊息內容
@@ -222,6 +224,7 @@ async def on_message(message: discord.Message):
                         urls = re.findall(r'(https?://\S+)', message.content)
                         if urls:
                             sent_gif_url = urls[0]
+                            print(f"🔍 從訊息內容獲取到 URL: {sent_gif_url}", flush=True)
                     
                     # 比較 URL（忽略查詢參數）
                     if sent_gif_url:
@@ -229,10 +232,15 @@ async def on_message(message: discord.Message):
                         sent_parsed = urlparse(sent_gif_url)
                         config_parsed = urlparse(gif_url)
                         
+                        print(f"🔍 發送的 URL - Path: {sent_parsed.path}, Netloc: {sent_parsed.netloc}", flush=True)
+                        print(f"🔍 設定的 URL - Path: {config_parsed.path}, Netloc: {config_parsed.netloc}", flush=True)
+                        
                         is_match = (
                             sent_parsed.path == config_parsed.path and
                             sent_parsed.netloc == config_parsed.netloc
                         )
+                        
+                        print(f"🔍 URL 匹配結果: {is_match}", flush=True)
                         
                         if is_match:
                             print(f"✅ 用戶發送了簽到 GIF", flush=True)

@@ -127,8 +127,10 @@ class CheckinManager:
         """設置 GIF 更換請求（使用資料庫存儲，避免多實例問題）"""
         from datetime import datetime, timedelta
         
-        # 計算過期時間
-        expires_at = (datetime.now() + timedelta(seconds=timeout_seconds)).strftime("%Y-%m-%d %H:%M:%S")
+        # 使用 UTC 時間以避免時區問題
+        expires_at = (datetime.utcnow() + timedelta(seconds=timeout_seconds)).strftime("%Y-%m-%d %H:%M:%S")
+        
+        print(f"🔍 設置 GIF 更換請求 - 用戶: {user_id}, 頻道: {channel_id}, 過期時間(UTC): {expires_at}", flush=True)
         
         if self.use_d1:
             # 先刪除舊的請求
@@ -137,10 +139,12 @@ class CheckinManager:
             ''', [user_id, channel_id])
             
             # 插入新請求
-            await self._execute_d1('''
+            result = await self._execute_d1('''
                 INSERT INTO gif_change_requests (user_id, channel_id, guild_id, checkin_time, expires_at)
                 VALUES (?, ?, ?, ?, ?)
             ''', [user_id, channel_id, guild_id, checkin_time, expires_at])
+            
+            print(f"🔍 GIF 更換請求插入結果: {result}", flush=True)
         else:
             async with aiosqlite.connect(self.db_path) as db:
                 # 先刪除舊的請求
@@ -162,6 +166,8 @@ class CheckinManager:
         """獲取並刪除 GIF 更換請求"""
         from datetime import datetime
         
+        print(f"🔍 查詢 GIF 更換請求 - 用戶: {user_id}, 頻道: {channel_id}", flush=True)
+        
         if self.use_d1:
             # 查詢請求
             result = await self._execute_d1('''
@@ -170,8 +176,11 @@ class CheckinManager:
                 ORDER BY id DESC LIMIT 1
             ''', [user_id, channel_id])
             
+            print(f"🔍 查詢結果: {result}", flush=True)
+            
             if result and result.get("success") and result.get("result"):
                 results = result["result"][0].get("results", [])
+                print(f"🔍 找到 {len(results)} 條記錄", flush=True)
                 if results:
                     row = results[0]
                     request_data = {
@@ -181,12 +190,17 @@ class CheckinManager:
                         "checkin_time": row.get("checkin_time")
                     }
                     
+                    print(f"🔍 找到 GIF 更換請求: {request_data}", flush=True)
+                    
                     # 刪除請求
                     await self._execute_d1('''
                         DELETE FROM gif_change_requests WHERE id = ?
                     ''', [row.get("id")])
                     
+                    print(f"🔍 GIF 更換請求已刪除", flush=True)
                     return request_data
+            else:
+                print(f"🔍 查詢失敗或沒有找到記錄", flush=True)
             return None
         else:
             async with aiosqlite.connect(self.db_path) as db:
