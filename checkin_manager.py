@@ -4,7 +4,11 @@
 """
 
 import aiosqlite
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+# 定義 UTC+8 時區
+UTC8 = timezone(timedelta(hours=8))
+
 from typing import List, Dict, Optional, Tuple
 import os
 import aiohttp
@@ -128,7 +132,7 @@ class CheckinManager:
         from datetime import datetime, timedelta
         
         # 使用 UTC 時間以避免時區問題
-        expires_at = (datetime.now() + timedelta(seconds=timeout_seconds)).strftime("%Y-%m-%d %H:%M:%S")
+        expires_at = (datetime.now(UTC8) + timedelta(seconds=timeout_seconds)).strftime("%Y-%m-%d %H:%M:%S")
         
         print(f"🔍 設置 GIF 更換請求 - 用戶: {user_id}, 頻道: {channel_id}, 過期時間(UTC): {expires_at}", flush=True)
         
@@ -339,8 +343,8 @@ class CheckinManager:
         返回: (是否成功, 總簽到次數, 連續簽到天數)
         """
         # 使用本地時間以匹配用戶的時區
-        today = datetime.now().strftime("%Y-%m-%d")
-        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        today = datetime.now(UTC8).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(UTC8) - timedelta(days=1)).strftime("%Y-%m-%d")
         
         print(f"🔍 簽到檢查 - 用戶: {user_id}, 今天(UTC): {today}", flush=True)
         
@@ -456,7 +460,7 @@ class CheckinManager:
     
     async def get_streak(self, user_id: str, guild_id: str) -> int:
         """獲取連續簽到天數"""
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(UTC8).strftime("%Y-%m-%d")
         
         if self.use_d1:
             # 檢查今天是否簽到
@@ -499,7 +503,7 @@ class CheckinManager:
     async def has_checked_today(self, user_id: str, guild_id: str) -> bool:
         """檢查今天是否已經簽到"""
         # 使用本地時間以匹配用戶的時區
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(UTC8).strftime("%Y-%m-%d")
         
         if self.use_d1:
             result = await self._execute_d1('''
