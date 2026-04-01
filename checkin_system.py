@@ -211,7 +211,7 @@ class LeaderboardSelect(Select):
             if idx == 1:
                 rank_counter = 1
             elif value != last_value:
-                rank_counter = idx
+                rank_counter += 1  # 只在分數變化時遞增排名
             
             last_value = value
             
@@ -225,7 +225,7 @@ class LeaderboardSelect(Select):
             else:
                 medal = f"{rank_counter}."
             
-            description += f"{medal} <@{user_id}>: {value}\n"
+            description += f"{medal} <@{user_id}>: {value} 次\n" if not by_streak else f"{medal} <@{user_id}>: {value} 天\n"
             print(f"🔍 排名 {rank_counter}: 用戶 {user_id}, 值: {value}, 索引: {idx}", flush=True)
         
         embed.description = description

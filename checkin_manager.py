@@ -128,7 +128,7 @@ class CheckinManager:
         from datetime import datetime, timedelta
         
         # 使用 UTC 時間以避免時區問題
-        expires_at = (datetime.utcnow() + timedelta(seconds=timeout_seconds)).strftime("%Y-%m-%d %H:%M:%S")
+        expires_at = (datetime.now() + timedelta(seconds=timeout_seconds)).strftime("%Y-%m-%d %H:%M:%S")
         
         print(f"🔍 設置 GIF 更換請求 - 用戶: {user_id}, 頻道: {channel_id}, 過期時間(UTC): {expires_at}", flush=True)
         
@@ -338,9 +338,9 @@ class CheckinManager:
         用戶簽到
         返回: (是否成功, 總簽到次數, 連續簽到天數)
         """
-        # 使用 UTC 時間以避免時區問題
-        today = datetime.utcnow().strftime("%Y-%m-%d")
-        yesterday = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+        # 使用本地時間以匹配用戶的時區
+        today = datetime.now().strftime("%Y-%m-%d")
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
         
         print(f"🔍 簽到檢查 - 用戶: {user_id}, 今天(UTC): {today}", flush=True)
         
@@ -498,8 +498,8 @@ class CheckinManager:
     
     async def has_checked_today(self, user_id: str, guild_id: str) -> bool:
         """檢查今天是否已經簽到"""
-        # 使用 UTC 時間以避免時區問題
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        # 使用本地時間以匹配用戶的時區
+        today = datetime.now().strftime("%Y-%m-%d")
         
         if self.use_d1:
             result = await self._execute_d1('''
@@ -507,7 +507,7 @@ class CheckinManager:
             ''', [user_id, guild_id, today])
             
             has_checked = result and result.get("success") and result.get("result") and result["result"][0].get("results") is not None
-            print(f"🔍 has_checked_today - 用戶: {user_id}, 今天(UTC): {today}, 已簽到: {has_checked}", flush=True)
+            print(f"🔍 has_checked_today - 用戶: {user_id}, 今天(本地): {today}, 已簽到: {has_checked}", flush=True)
             return has_checked
         else:
             async with aiosqlite.connect(self.db_path) as db:
