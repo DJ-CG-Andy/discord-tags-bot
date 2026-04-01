@@ -210,8 +210,9 @@ class LeaderboardSelect(Select):
             # 計算排名（同次數同排名）
             if idx == 1:
                 rank_counter = 1
-            elif value != last_value:
-                rank_counter += 1  # 只在分數變化時遞增排名
+            else:
+                if value != last_value:
+                    rank_counter += 1  # 只在分數變化時遞增排名
             
             last_value = value
             
