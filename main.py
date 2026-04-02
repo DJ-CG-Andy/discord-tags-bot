@@ -44,6 +44,7 @@ from history_processor import HistoryProcessor
 from emoji_utils import compare_emoji, normalize_emoji, is_custom_emoji, display_emoji, set_embed_emoji
 from checkin_manager import CheckinManager
 from checkin_system import CheckinView, CheckinSettingsView, GifConfirmationView
+from reply_manager import ReplyManager
 
 # 加載環境變量
 load_dotenv()
@@ -75,9 +76,11 @@ DB_PATH = "discord_tags.db"
 if USE_D1:
     db = Database(use_d1=True)
     checkin_manager = CheckinManager(use_d1=True)
+    reply_manager = ReplyManager(use_d1=True)
 else:
     db = Database(db_path=DB_PATH)
     checkin_manager = CheckinManager(db_path=DB_PATH)
+    reply_manager = ReplyManager(db_path=DB_PATH)
     
 tag_manager = TagManager(db)
 message_handler = None
@@ -351,6 +354,220 @@ async def on_message(message: discord.Message):
                     print(f"🔍 沒有設置簽到 GIF", flush=True)
             else:
                 print(f"🔍 不是簽到頻道或沒有簽到配置", flush=True)
+    
+    # 處理刷版區回覆
+    print(f"🔍 檢查刷版區回覆請求...", flush=True)
+    
+    # 檢查是否有新增回覆請求
+    add_request = await reply_manager.get_add_request(user_id, channel_id)
+    if add_request:
+        print(f"✅ 找到新增回覆請求: {add_request}", flush=True)
+        
+        # 提取 GIF/貼圖資訊
+        trigger_type = None
+        trigger_id = None
+        trigger_url = None
+        
+        # 檢查附件
+        if message.attachments:
+            for attachment in message.attachments:
+                if attachment.content_type and 'image' in attachment.content_type:
+                    trigger_type = 'gif'
+                    trigger_url = attachment.url
+                    # 從 URL 中提取 ID
+                    import re
+                    id_match = re.search(r'/(\d{16,})', attachment.url)
+                    if id_match:
+                        trigger_id = id_match.group(1)
+                    else:
+                        trigger_id = str(attachment.id)
+                    print(f"✅ 從附件獲取: {trigger_type}, ID: {trigger_id}, URL: {trigger_url}", flush=True)
+                    break
+        
+        # 檢查貼圖
+        if not trigger_type and message.stickers:
+            sticker = message.stickers[0]
+            trigger_type = 'sticker'
+            trigger_id = str(sticker.id)
+            trigger_url = sticker.url
+            print(f"✅ 從貼圖獲取: {trigger_type}, ID: {trigger_id}, URL: {trigger_url}", flush=True)
+        
+        # 檢查自定義表情符號
+        if not trigger_type and message.content:
+            # 檢查訊息內容中是否有自定義表情符號
+            import re
+            emoji_pattern = r'<a?:(\w+):(\d{16,})>'
+            emojis = re.findall(emoji_pattern, message.content)
+            if emojis:
+                emoji_name, emoji_id = emojis[0]
+                trigger_type = 'emoji'
+                trigger_id = emoji_id
+                trigger_url = f"https://cdn.discordapp.com/emojis/{emoji_id}.webp"
+                print(f"✅ 從表情符號獲取: {trigger_type}, ID: {trigger_id}, URL: {trigger_url}", flush=True)
+        
+        if trigger_type and trigger_id:
+            # 添加觸發器
+            success = await reply_manager.add_trigger(
+                guild_id=guild_id,
+                user_id=user_id,
+                trigger_type=trigger_type,
+                trigger_id=trigger_id,
+                trigger_url=trigger_url
+            )
+            
+            if success:
+                embed = discord.Embed(
+                    title="✅ 回覆已新增",
+                    description="此 GIF/貼圖/表情符號已被加入回覆列表",
+                    color=discord.Color.green()
+                )
+                if trigger_url:
+                    embed.set_image(url=trigger_url)
+                embed.add_field(name="類型", value=trigger_type, inline=True)
+                embed.add_field(name="ID", value=trigger_id[-8:], inline=True)
+                
+                await message.reply(embed=embed)
+                print(f"✅ 回覆已新增並回復", flush=True)
+            else:
+                await message.reply("❌ 新增回覆失敗！")
+                print(f"❌ 新增回覆失敗", flush=True)
+        else:
+            await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
+            print(f"❌ 未檢測到有效的觸發器", flush=True)
+    
+    # 檢查是否有刪除回覆請求
+    delete_request = await reply_manager.get_delete_request(user_id, channel_id)
+    if delete_request:
+        print(f"✅ 找到刪除回覆請求: {delete_request}", flush=True)
+        
+        # 提取 GIF/貼圖資訊
+        trigger_id = None
+        
+        # 檢查附件
+        if message.attachments:
+            for attachment in message.attachments:
+                if attachment.content_type and 'image' in attachment.content_type:
+                    # 從 URL 中提取 ID
+                    import re
+                    id_match = re.search(r'/(\d{16,})', attachment.url)
+                    if id_match:
+                        trigger_id = id_match.group(1)
+                    else:
+                        trigger_id = str(attachment.id)
+                    print(f"✅ 從附件提取 ID: {trigger_id}", flush=True)
+                    break
+        
+        # 檢查貼圖
+        if not trigger_id and message.stickers:
+            sticker = message.stickers[0]
+            trigger_id = str(sticker.id)
+            print(f"✅ 從貼圖提取 ID: {trigger_id}", flush=True)
+        
+        # 檢查自定義表情符號
+        if not trigger_id and message.content:
+            import re
+            emoji_pattern = r'<a?:(\w+):(\d{16,})>'
+            emojis = re.findall(emoji_pattern, message.content)
+            if emojis:
+                emoji_name, emoji_id = emojis[0]
+                trigger_id = emoji_id
+                print(f"✅ 從表情符號提取 ID: {trigger_id}", flush=True)
+        
+        if trigger_id:
+            # 刪除觸發器
+            success = await reply_manager.delete_trigger(
+                guild_id=guild_id,
+                trigger_id=trigger_id
+            )
+            
+            if success:
+                embed = discord.Embed(
+                    title="✅ 回覆已刪除",
+                    description="此 GIF/貼圖/表情符號已從回覆列表中移除",
+                    color=discord.Color.green()
+                )
+                embed.add_field(name="ID", value=trigger_id[-8:], inline=True)
+                
+                await message.reply(embed=embed)
+                print(f"✅ 回覆已刪除並回復", flush=True)
+            else:
+                await message.reply("❌ 刪除回覆失敗！")
+                print(f"❌ 刪除回覆失敗", flush=True)
+        else:
+            await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
+            print(f"❌ 未檢測到有效的觸發器", flush=True)
+    
+    # 處理刷版區自動回覆
+    if guild_id and channel_id:
+        config = await reply_manager.get_config(guild_id)
+        
+        if config and str(config.get('channel_id')) == channel_id and config.get('enabled'):
+            print(f"🔍 這是刷版區，檢查觸發器...", flush=True)
+            
+            # 獲取訊息中的觸發器
+            trigger_id = None
+            trigger_type = None
+            
+            # 檢查附件
+            if message.attachments:
+                for attachment in message.attachments:
+                    if attachment.content_type and 'image' in attachment.content_type:
+                        import re
+                        id_match = re.search(r'/(\d{16,})', attachment.url)
+                        if id_match:
+                            trigger_id = id_match.group(1)
+                        else:
+                            trigger_id = str(attachment.id)
+                        trigger_type = 'gif'
+                        print(f"🔍 從附件提取觸發器: {trigger_type}, ID: {trigger_id}", flush=True)
+                        break
+            
+            # 檢查貼圖
+            if not trigger_id and message.stickers:
+                sticker = message.stickers[0]
+                trigger_id = str(sticker.id)
+                trigger_type = 'sticker'
+                print(f"🔍 從貼圖提取觸發器: {trigger_type}, ID: {trigger_id}", flush=True)
+            
+            # 檢查自定義表情符號
+            if not trigger_id and message.content:
+                import re
+                emoji_pattern = r'<a?:(\w+):(\d{16,})>'
+                emojis = re.findall(emoji_pattern, message.content)
+                if emojis:
+                    emoji_name, emoji_id = emojis[0]
+                    trigger_id = emoji_id
+                    trigger_type = 'emoji'
+                    print(f"🔍 從表情符號提取觸發器: {trigger_type}, ID: {trigger_id}", flush=True)
+            
+            if trigger_id:
+                # 檢查是否有匹配的觸發器
+                triggers = await reply_manager.get_triggers(guild_id)
+                
+                for trigger in triggers:
+                    if trigger['trigger_id'] == trigger_id:
+                        print(f"✅ 找到匹配的觸發器，準備回覆...", flush=True)
+                        
+                        # 記錄使用次數
+                        await reply_manager.record_usage(guild_id, trigger_id, user_id)
+                        
+                        # 發送回覆
+                        reply_trigger_type = trigger['trigger_type']
+                        reply_trigger_url = trigger['trigger_url']
+                        
+                        if reply_trigger_type == 'gif' and reply_trigger_url:
+                            await message.reply(f"{message.author.mention}", file=discord.File(reply_trigger_url))
+                        elif reply_trigger_type == 'sticker' and reply_trigger_url:
+                            # 貼圖需要使用 Discord API 發送
+                            try:
+                                await message.channel.send(reply_trigger_url)
+                            except:
+                                pass
+                        elif reply_trigger_type == 'emoji' and reply_trigger_url:
+                            await message.add_reaction(reply_trigger_url)
+                        
+                        print(f"✅ 回覆已發送", flush=True)
+                        break
     
     # 確保其他命令繼續正常工作
     await bot.process_commands(message)
@@ -663,6 +880,11 @@ async def on_ready():
     await checkin_manager.init_tables()
     print("✅ 簽到系統初始化完成")
     
+    # 初始化回覆系統表
+    print(f"🔍 開始初始化回覆系統表...", flush=True)
+    await reply_manager.init_tables()
+    print("✅ 回覆系統初始化完成")
+    
     # 不初始化默認標籤，讓用戶自己創建
     print("✅ 標籤系統就緒（無預設標籤）")
     
@@ -952,6 +1174,38 @@ class MainMenuViewWithCheckin(View):
         embed.add_field(name="⏰ 調整時間", value="調整每日簽到的時間界限", inline=False)
         embed.add_field(name="🖼️ 更換 GIF", value="更換簽到成功時顯示的 GIF", inline=False)
         embed.add_field(name="📊 顯示排名", value="查看簽到排行榜", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+    
+    @discord.ui.button(label="🎭 刷版區設定", style=discord.ButtonStyle.success, emoji="🎭", custom_id="reply_settings")
+    async def reply_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示刷版區設置菜單"""
+        guild_id = str(interaction.guild.id)
+        view = ReplySettingsView(reply_manager, guild_id)
+        
+        # 檢查是否已設置刷版區頻道
+        config = await reply_manager.get_config(guild_id)
+        
+        if config:
+            channel_id = config.get('channel_id')
+            try:
+                channel = bot.get_channel(int(channel_id))
+                channel_name = channel.name if channel else f"未知頻道 ({channel_id})"
+                description = f"當前刷版區頻道: **#{channel_name}**\n選擇一個操作："
+            except:
+                description = f"當前刷版區頻道: {channel_id}\n選擇一個操作："
+        else:
+            description = "尚未設置刷版區頻道\n選擇一個操作："
+        
+        embed = discord.Embed(
+            title="🎭 刷版區設定",
+            description=description,
+            color=discord.Color.purple()
+        )
+        embed.add_field(name="⚙️ 設置頻道", value="設置當前頻道為刷版區", inline=False)
+        embed.add_field(name="🖼️ 新增回覆", value="新增想要 bot 回覆的 GIF/貼圖/表情符號", inline=False)
+        embed.add_field(name="📊 顯示排名", value="查看觸發回覆排行榜", inline=False)
+        embed.add_field(name="🗑️ 刪除回覆", value="刪除想要 bot 回覆的 GIF/貼圖/表情符號", inline=False)
         
         await interaction.response.edit_message(embed=embed, view=view)
     
@@ -1944,6 +2198,222 @@ if __name__ == "__main__":
             self.wfile.write(b"Discord Tag System Bot is running!")
         
         def log_message(self, format, *args):
+
+# ========== 刷版區回覆系統 View ==========
+
+class ReplySettingsView(View):
+    """刷版區設置視圖"""
+    def __init__(self, reply_manager: ReplyManager, guild_id: str):
+        super().__init__(timeout=None)
+        self.reply_manager = reply_manager
+        self.guild_id = guild_id
+    
+    @discord.ui.button(label="⚙️ 設置頻道", style=discord.ButtonStyle.primary)
+    async def set_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """設置刷版區頻道"""
+        # 獲取當前頻道作為刷版區頻道
+        guild_id = str(interaction.guild.id)
+        channel_id = str(interaction.channel.id)
+        
+        success = await self.reply_manager.set_config(guild_id, channel_id, enabled=True)
+        
+        if success:
+            embed = discord.Embed(
+                title="✅ 刷版區頻道已設置",
+                description=f"此頻道 (`#{interaction.channel.name}`) 已設置為刷版區",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="功能說明", value="在此頻道中發送設定的 GIF/貼圖/表情符號時，bot 會隨機回覆", inline=False)
+            embed.add_field(name="新增回覆", value="使用「🖼️ 新增回覆」來添加觸發器", inline=False)
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ 設置刷版區頻道失敗！", ephemeral=True)
+    
+    @discord.ui.button(label="🖼️ 新增回覆", style=discord.ButtonStyle.secondary)
+    async def add_reply(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 顯示確認對話框
+        embed = discord.Embed(
+            title="📤 發送新的回覆",
+            description="你確定要新增回覆嗎？",
+            color=discord.Color.blue()
+        )
+        view = AddReplyConfirmationView(self.reply_manager, self.guild_id, str(interaction.channel.id))
+        await interaction.response.send_message(embed=embed, view=view)
+    
+    @discord.ui.button(label="📊 顯示排名", style=discord.ButtonStyle.secondary)
+    async def show_leaderboard(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 顯示排名
+        stats = await self.reply_manager.get_usage_stats(self.guild_id)
+        
+        if not stats:
+            embed = discord.Embed(
+                title="📊 回覆觸發排行榜",
+                description="暫無回覆數據",
+                color=discord.Color.orange()
+            )
+            embed.add_field(name="💡 提示", value="先使用「🖼️ 新增回覆」來添加一些回覆！", inline=False)
+        else:
+            embed = discord.Embed(
+                title="📊 回覆觸發排行榜",
+                description=f"共有 {len(stats)} 個回覆",
+                color=discord.Color.purple()
+            )
+            
+            for i, stat in enumerate(stats[:10]):
+                trigger_type = stat['trigger_type']
+                trigger_id = stat['trigger_id']
+                trigger_url = stat.get('trigger_url', '')
+                usage_count = stat['usage_count']
+                
+                if trigger_type == 'gif' and trigger_url:
+                    trigger_display = f"[GIF]({trigger_url})"
+                elif trigger_type == 'sticker' and trigger_url:
+                    trigger_display = f"[貼圖]({trigger_url})"
+                else:
+                    trigger_display = f"{trigger_type}:{trigger_id[-8:]}"
+                
+                embed.add_field(
+                    name=f"#{i+1} {trigger_display}",
+                    value=f"觸發次數: {usage_count}",
+                    inline=False
+                )
+        
+        await interaction.response.send_message(embed=embed)
+    
+    @discord.ui.button(label="🗑️ 刪除回覆", style=discord.ButtonStyle.secondary)
+    async def delete_reply(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 顯示確認對話框
+        embed = discord.Embed(
+            title="🗑️ 刪除回覆",
+            description="你確定要刪除回覆嗎？",
+            color=discord.Color.red()
+        )
+        view = DeleteReplyConfirmationView(self.reply_manager, self.guild_id, str(interaction.channel.id))
+        await interaction.response.send_message(embed=embed, view=view)
+    
+    @discord.ui.button(label="🔙 返回", style=discord.ButtonStyle.secondary)
+    async def back_to_menu(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from main import BackToMenuView
+        view = BackToMenuView(guild_id=self.guild_id, channel_id=str(interaction.channel.id))
+        embed = discord.Embed(
+            title="🎮 Discord 標籤系統",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="🏷️ 新增標籤", value="添加新的標籤", inline=False)
+        embed.add_field(name="🔍 搜索標籤", value="搜索帶有標籤的消息", inline=False)
+        embed.add_field(name="📋 查看標籤", value="查看所有可用標籤", inline=False)
+        embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class AddReplyConfirmationView(View):
+    """新增回覆確認視圖"""
+    def __init__(self, reply_manager: ReplyManager, guild_id: str, channel_id: str):
+        super().__init__(timeout=60)
+        self.reply_manager = reply_manager
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+    
+    @discord.ui.button(label="✅ 確定", style=discord.ButtonStyle.green)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print(f"🔍 ===== AddReplyConfirmationView.confirm 被調用 =====", flush=True)
+        print(f"🔍 用戶 ID: {interaction.user.id}", flush=True)
+        print(f"🔍 頻道 ID: {interaction.channel.id}", flush=True)
+        print(f"🔍 Guild ID: {self.guild_id}", flush=True)
+        
+        # 使用資料庫存儲新增回覆請求
+        try:
+            success = await self.reply_manager.set_add_request(
+                user_id=str(interaction.user.id),
+                channel_id=str(interaction.channel.id),
+                guild_id=self.guild_id,
+                timeout_seconds=120  # 2分鐘過期
+            )
+            
+            if success:
+                print(f"✅ 新增回覆請求已保存到資料庫", flush=True)
+            else:
+                print(f"❌ 保存新增回覆請求失敗", flush=True)
+        except Exception as e:
+            print(f"❌ 保存新增回覆請求時發生錯誤: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+        
+        # 讓用戶發送 GIF/貼圖
+        embed = discord.Embed(
+            title="📤 發送新的回覆",
+            description="請在此訊息下方發送新的 GIF/貼圖/表情符號",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="發送方式", value="你可以使用以下任一方式：", inline=False)
+        embed.add_field(name="1. GIF 連結", value="直接發送 GIF 連結", inline=False)
+        embed.add_field(name="2. GIF ID", value="只發送 GIF ID", inline=False)
+        embed.add_field(name="3. 上傳 GIF", value="直接上傳 GIF 圖片", inline=False)
+        embed.add_field(name="4. Discord 貼圖", value="直接發送 Discord 貼圖", inline=False)
+        embed.add_field(name="5. 表情符號", value="直接發送自定義表情符號", inline=False)
+        embed.add_field(name="⏰ 有效時間", value="2 分鐘", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=None)
+        print(f"✅ 用戶已被告知發送 GIF/貼圖", flush=True)
+    
+    @discord.ui.button(label="❌ 取消", style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(content="已取消新增回覆", embed=None, view=None)
+
+class DeleteReplyConfirmationView(View):
+    """刪除回覆確認視圖"""
+    def __init__(self, reply_manager: ReplyManager, guild_id: str, channel_id: str):
+        super().__init__(timeout=60)
+        self.reply_manager = reply_manager
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+    
+    @discord.ui.button(label="✅ 確定", style=discord.ButtonStyle.green)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print(f"🔍 ===== DeleteReplyConfirmationView.confirm 被調用 =====", flush=True)
+        print(f"🔍 用戶 ID: {interaction.user.id}", flush=True)
+        print(f"🔍 頻道 ID: {interaction.channel.id}", flush=True)
+        print(f"🔍 Guild ID: {self.guild_id}", flush=True)
+        
+        # 使用資料庫存儲刪除回覆請求
+        try:
+            success = await self.reply_manager.set_delete_request(
+                user_id=str(interaction.user.id),
+                channel_id=str(interaction.channel.id),
+                guild_id=self.guild_id,
+                timeout_seconds=120  # 2分鐘過期
+            )
+            
+            if success:
+                print(f"✅ 刪除回覆請求已保存到資料庫", flush=True)
+            else:
+                print(f"❌ 保存刪除回覆請求失敗", flush=True)
+        except Exception as e:
+            print(f"❌ 保存刪除回覆請求時發生錯誤: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+        
+        # 讓用戶發送要刪除的 GIF/貼圖
+        embed = discord.Embed(
+            title="🗑️ 刪除回覆",
+            description="請在此訊息下方發送要刪除的 GIF/貼圖/表情符號",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="發送方式", value="你可以使用以下任一方式：", inline=False)
+        embed.add_field(name="1. GIF 連結", value="直接發送要刪除的 GIF 連結", inline=False)
+        embed.add_field(name="2. GIF ID", value="只發送要刪除的 GIF ID", inline=False)
+        embed.add_field(name="3. Discord 貼圖", value="直接發送要刪除的 Discord 貼圖", inline=False)
+        embed.add_field(name="4. 表情符號", value="直接發送要刪除的自定義表情符號", inline=False)
+        embed.add_field(name="⏰ 有效時間", value="2 分鐘", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=None)
+        print(f"✅ 用戶已被告知發送要刪除的 GIF/貼圖", flush=True)
+    
+    @discord.ui.button(label="❌ 取消", style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(content="已取消刪除回覆", embed=None, view=None)
             # 禁用 HTTP 服務器的日誌輸出
             pass
     
