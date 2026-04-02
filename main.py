@@ -2399,22 +2399,25 @@ class ReplySettingsView(View):
                 color=discord.Color.purple()
             )
             
+            description = ""
             for i, stat in enumerate(stats[:10]):
                 user_id = stat['user_id']
                 trigger_count = stat['trigger_count']
-                
-                # 獲取用戶顯示名稱
-                member = interaction.guild.get_member(int(user_id))
-                if member:
-                    user_display = member.display_name
+                medal = ""
+                if i == 0:
+                    medal = "🥇"
+                elif i == 1:
+                    medal = "🥈"
+                elif i == 2:
+                    medal = "🥉"
                 else:
-                    user_display = f"Unknown ({user_id})"
+                    medal = f"{i+1}."
                 
-                embed.add_field(
-                    name=f"#{i+1} {user_display}",
-                    value=f"觸發次數: {trigger_count}",
-                    inline=False
-                )
+                description += f"{medal} <@{user_id}>: {trigger_count} 次\n"
+            
+            embed.description = description
+        
+        await interaction.response.send_message(embed=embed)
         
         await interaction.response.send_message(embed=embed)
     
