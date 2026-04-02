@@ -444,29 +444,17 @@ async def on_message(message: discord.Message):
                 embed.add_field(name="類型", value=trigger_type, inline=True)
                 embed.add_field(name="ID", value=trigger_id[-8:], inline=True)
                 
-                # 發送訊息並在 3 秒後刪除，避免干擾其他用戶
-                reply_msg = await message.reply(embed=embed)
-                import asyncio
-                await asyncio.sleep(3)
-                await reply_msg.delete()
-                await message.delete()
+                # 發送訊息（不刪除）
+                await message.reply(embed=embed)
                 print(f"✅ 回覆已新增並回復", flush=True)
                 # 新增回覆完成後直接返回，避免繼續執行自動回覆邏輯
                 return
             else:
-                error_msg = await message.reply("❌ 新增回覆失敗！")
-                import asyncio
-                await asyncio.sleep(2)
-                await error_msg.delete()
-                await message.delete()
+                await message.reply("❌ 新增回覆失敗！")
                 print(f"❌ 新增回覆失敗", flush=True)
                 return
         else:
-            error_msg = await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
-            import asyncio
-            await asyncio.sleep(2)
-            await error_msg.delete()
-            await message.delete()
+            await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
             print(f"❌ 未檢測到有效的觸發器", flush=True)
             return
     
@@ -523,29 +511,17 @@ async def on_message(message: discord.Message):
                 )
                 embed.add_field(name="ID", value=trigger_id[-8:], inline=True)
                 
-                # 發送訊息並在 3 秒後刪除
-                reply_msg = await message.reply(embed=embed)
-                import asyncio
-                await asyncio.sleep(3)
-                await reply_msg.delete()
-                await message.delete()
+                # 發送訊息（不刪除）
+                await message.reply(embed=embed)
                 print(f"✅ 回覆已刪除並回復", flush=True)
                 # 刪除回覆完成後直接返回，避免繼續執行自動回覆邏輯
                 return
             else:
-                error_msg = await message.reply("❌ 刪除回覆失敗！")
-                import asyncio
-                await asyncio.sleep(2)
-                await error_msg.delete()
-                await message.delete()
+                await message.reply("❌ 刪除回覆失敗！")
                 print(f"❌ 刪除回覆失敗", flush=True)
                 return
         else:
-            error_msg = await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
-            import asyncio
-            await asyncio.sleep(2)
-            await error_msg.delete()
-            await message.delete()
+            await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
             print(f"❌ 未檢測到有效的觸發器", flush=True)
             return
     
