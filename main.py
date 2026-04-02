@@ -1137,9 +1137,10 @@ class SearchTagModal(Modal, title='搜索標籤'):
         
         for i, mt in enumerate(message_tags[:limit]):
             content = mt.message_content[:100] + "..." if len(mt.message_content) > 100 else mt.message_content
+            message_link = f"https://discord.com/channels/{mt.guild_id}/{mt.channel_id}/{mt.message_id}"
             embed.add_field(
-                name=f"{i+1}. 訊息 (ID: {mt.message_id[-8:]})",
-                value=f"{content}\n🕐 {mt.created_at}",
+                name=f"{i+1}. 訊息",
+                value=f"{content}\n🕐 {mt.created_at}\n🔗 [跳轉到原訊息]({message_link})",
                 inline=False
             )
         
