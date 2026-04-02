@@ -215,15 +215,17 @@ class ReplyManager:
                 )
                 
                 if result and result.get("success") and result.get("result") and len(result["result"]) > 0:
-                    row = result["result"][0]["results"][0]
-                    return {
-                        'id': row.get("id"),
-                        'guild_id': row.get("guild_id"),
-                        'channel_id': row.get("channel_id"),
-                        'enabled': row.get("enabled") == 1,
-                        'created_at': row.get("created_at"),
-                        'updated_at': row.get("updated_at")
-                    }
+                    row_result = result["result"][0]
+                    if "results" in row_result and len(row_result["results"]) > 0:
+                        row = row_result["results"][0]
+                        return {
+                            'id': row.get("id"),
+                            'guild_id': row.get("guild_id"),
+                            'channel_id': row.get("channel_id"),
+                            'enabled': row.get("enabled") == 1,
+                            'created_at': row.get("created_at"),
+                            'updated_at': row.get("updated_at")
+                        }
             else:
                 async with aiosqlite.connect(self.db_path) as db:
                     async with db.execute(
@@ -443,20 +445,22 @@ class ReplyManager:
                 )
                 
                 if result and result.get("success") and result.get("result") and len(result["result"]) > 0:
-                    row = result["result"][0]["results"][0]
-                    request_data = {
-                        'id': row.get("id"),
-                        'user_id': row.get("user_id"),
-                        'channel_id': row.get("channel_id"),
-                        'guild_id': row.get("guild_id"),
-                        'expires_at': row.get("expires_at")
-                    }
-                    # 刪除請求
-                    await self._execute_d1(
-                        'DELETE FROM reply_add_requests WHERE id = ?',
-                        [request_data['id']]
-                    )
-                    return request_data
+                    row_result = result["result"][0]
+                    if "results" in row_result and len(row_result["results"]) > 0:
+                        row = row_result["results"][0]
+                        request_data = {
+                            'id': row.get("id"),
+                            'user_id': row.get("user_id"),
+                            'channel_id': row.get("channel_id"),
+                            'guild_id': row.get("guild_id"),
+                            'expires_at': row.get("expires_at")
+                        }
+                        # 刪除請求
+                        await self._execute_d1(
+                            'DELETE FROM reply_add_requests WHERE id = ?',
+                            [request_data['id']]
+                        )
+                        return request_data
             else:
                 async with aiosqlite.connect(self.db_path) as db:
                     async with db.execute(
@@ -528,20 +532,22 @@ class ReplyManager:
                 )
                 
                 if result and result.get("success") and result.get("result") and len(result["result"]) > 0:
-                    row = result["result"][0]["results"][0]
-                    request_data = {
-                        'id': row.get("id"),
-                        'user_id': row.get("user_id"),
-                        'channel_id': row.get("channel_id"),
-                        'guild_id': row.get("guild_id"),
-                        'expires_at': row.get("expires_at")
-                    }
-                    # 刪除請求
-                    await self._execute_d1(
-                        'DELETE FROM reply_delete_requests WHERE id = ?',
-                        [request_data['id']]
-                    )
-                    return request_data
+                    row_result = result["result"][0]
+                    if "results" in row_result and len(row_result["results"]) > 0:
+                        row = row_result["results"][0]
+                        request_data = {
+                            'id': row.get("id"),
+                            'user_id': row.get("user_id"),
+                            'channel_id': row.get("channel_id"),
+                            'guild_id': row.get("guild_id"),
+                            'expires_at': row.get("expires_at")
+                        }
+                        # 刪除請求
+                        await self._execute_d1(
+                            'DELETE FROM reply_delete_requests WHERE id = ?',
+                            [request_data['id']]
+                        )
+                        return request_data
             else:
                 async with aiosqlite.connect(self.db_path) as db:
                     async with db.execute(
