@@ -255,21 +255,36 @@ class ReplyManager:
     async def add_trigger(self, guild_id: str, user_id: str, trigger_type: str, trigger_id: str, trigger_url: str = "") -> bool:
         """添加回覆觸發器"""
         try:
+            print(f"🔍 add_trigger - 開始添加觸發器", flush=True)
+            print(f"   guild_id: {guild_id}", flush=True)
+            print(f"   user_id: {user_id}", flush=True)
+            print(f"   trigger_type: {trigger_type}", flush=True)
+            print(f"   trigger_id: {trigger_id}", flush=True)
+            print(f"   trigger_url: {trigger_url}", flush=True)
+            
             if self.use_d1:
-                await self._execute_d1(
+                print(f"🔍 add_trigger - D1 模式", flush=True)
+                result = await self._execute_d1(
                     'INSERT OR REPLACE INTO reply_triggers (guild_id, user_id, trigger_type, trigger_id, trigger_url) VALUES (?, ?, ?, ?, ?)',
                     [guild_id, user_id, trigger_type, trigger_id, trigger_url]
                 )
+                print(f"🔍 add_trigger - D1 插入結果: {result}", flush=True)
             else:
+                print(f"🔍 add_trigger - SQLite 模式", flush=True)
                 async with aiosqlite.connect(self.db_path) as db:
                     await db.execute(
                         'INSERT OR REPLACE INTO reply_triggers (guild_id, user_id, trigger_type, trigger_id, trigger_url) VALUES (?, ?, ?, ?, ?)',
                         (guild_id, user_id, trigger_type, trigger_id, trigger_url)
                     )
                     await db.commit()
+                    print(f"🔍 add_trigger - SQLite 插入完成", flush=True)
+            
+            print(f"✅ add_trigger - 成功", flush=True)
             return True
         except Exception as e:
-            print(f"❌ 添加回覆觸發器失敗: {e}")
+            print(f"❌ 添加回覆觸發器失敗: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             return False
     
     async def get_triggers(self, guild_id: str) -> List[Dict]:
@@ -277,14 +292,19 @@ class ReplyManager:
         try:
             triggers = []
             if self.use_d1:
+                print(f"🔍 get_triggers - D1 模式，guild_id: {guild_id}", flush=True)
                 result = await self._execute_d1(
                     'SELECT * FROM reply_triggers WHERE guild_id = ?',
                     [guild_id]
                 )
                 
+                print(f"🔍 get_triggers - D1 返回結果: {result}", flush=True)
+                
                 if result and result.get("success") and result.get("result"):
+                    print(f"🔍 get_triggers - D1 結果有 {len(result['result'])} 個結果", flush=True)
                     for row_result in result["result"]:
                         if "results" in row_result:
+                            print(f"🔍 get_triggers - row_result.results 有 {len(row_result['results'])} 行", flush=True)
                             for row in row_result["results"]:
                                 triggers.append({
                                     'id': row.get("id"),
@@ -295,6 +315,9 @@ class ReplyManager:
                                     'trigger_url': row.get("trigger_url"),
                                     'created_at': row.get("created_at")
                                 })
+                                print(f"🔍 get_triggers - 添加觸發器: ID={row.get('trigger_id')[-8:]}, type={row.get('trigger_type')}", flush=True)
+                else:
+                    print(f"🔍 get_triggers - D1 結果為空或無效", flush=True)
             else:
                 async with aiosqlite.connect(self.db_path) as db:
                     async with db.execute(
