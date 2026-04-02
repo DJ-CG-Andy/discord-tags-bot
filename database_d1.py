@@ -393,6 +393,67 @@ class Database:
                 print(f"❌ 獲取標籤失敗: {e}")
                 return None
     
+    async def search_by_tag(self, tag_name: str, guild_id: str = None, limit: int = 50) -> List[MessageTag]:
+        """根據標籤搜索消息"""
+        if not self.use_d1:
+            async with aiosqlite.connect(self.db_path) as db:
+                if guild_id:
+                    async with db.execute(
+                        "SELECT mt.* FROM message_tags mt "
+                        "JOIN tags t ON mt.tag_id = t.id "
+                        "WHERE t.name = ? AND mt.guild_id = ? "
+                        "ORDER BY mt.tagged_at DESC LIMIT ?",
+                        (tag_name, guild_id, limit)
+                    ) as cursor:
+                        rows = await cursor.fetchall()
+                        return [MessageTag(*row) for row in rows]
+                else:
+                    async with db.execute(
+                        "SELECT mt.* FROM message_tags mt "
+                        "JOIN tags t ON mt.tag_id = t.id "
+                        "WHERE t.name = ? "
+                        "ORDER BY mt.tagged_at DESC LIMIT ?",
+                        (tag_name, limit)
+                    ) as cursor:
+                        rows = await cursor.fetchall()
+                        return [MessageTag(*row) for row in rows]
+        else:
+            try:
+                if guild_id:
+                    sql = """SELECT mt.* FROM message_tags mt 
+                             JOIN tags t ON mt.tag_id = t.id 
+                             WHERE t.name = ? AND mt.guild_id = ? 
+                             ORDER BY mt.tagged_at DESC LIMIT ?"""
+                    result = await self._execute_d1(sql, (tag_name, guild_id, limit))
+                else:
+                    sql = """SELECT mt.* FROM message_tags mt 
+                             JOIN tags t ON mt.tag_id = t.id 
+                             WHERE t.name = ? 
+                             ORDER BY mt.tagged_at DESC LIMIT ?"""
+                    result = await self._execute_d1(sql, (tag_name, limit))
+                
+                message_tags = []
+                if result and result.get("success") and result.get("result"):
+                    for row_result in result["result"]:
+                        if "results" in row_result:
+                            for r in row_result["results"]:
+                                message_tags.append(MessageTag(
+                                    r.get("id"),
+                                    r.get("message_id"),
+                                    r.get("channel_id"),
+                                    r.get("guild_id"),
+                                    r.get("tag_id"),
+                                    r.get("tagged_by"),
+                                    r.get("tagged_at"),
+                                    r.get("message_content", ""),
+                                    r.get("author_id"),
+                                    r.get("created_at")
+                                ))
+                return message_tags
+            except Exception as e:
+                print(f"❌ 搜索失敗: {e}")
+                return []
+
     async def get_tags_by_category(self, category: str) -> List[Tag]:
         """根據分類獲取標籤"""
         if not self.use_d1:
