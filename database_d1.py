@@ -433,8 +433,8 @@ class Database:
                     result = await self._execute_d1(sql, (tag_name, limit))
                 
                 message_tags = []
-                if result and result.get("success") and result.get("result"):
-                    for row_result in result["result"]:
+                if result and len(result) > 0:
+                    for row_result in result:
                         if "results" in row_result:
                             for r in row_result["results"]:
                                 message_tags.append(MessageTag(
@@ -694,3 +694,37 @@ class Database:
             except Exception as e:
                 print(f"❌ 刪除所有標籤失敗: {e}")
                 return False
+    
+    async def get_active_users_count(self, guild_id: str = None) -> int:
+        """獲取活躍用戶數"""
+        if not self.use_d1:
+            async with aiosqlite.connect(self.db_path) as db:
+                if guild_id:
+                    async with db.execute(
+                        'SELECT COUNT(DISTINCT tagged_by) FROM message_tags WHERE guild_id = ?',
+                        (guild_id,)
+                    ) as cursor:
+                        result = await cursor.fetchone()
+                        return result[0] if result else 0
+                else:
+                    async with db.execute(
+                        'SELECT COUNT(DISTINCT tagged_by) FROM message_tags'
+                    ) as cursor:
+                        result = await cursor.fetchone()
+                        return result[0] if result else 0
+        else:
+            try:
+                if guild_id:
+                    sql = 'SELECT COUNT(DISTINCT tagged_by) as count FROM message_tags WHERE guild_id = ?'
+                    result = await self._execute_d1(sql, (guild_id,))
+                else:
+                    sql = 'SELECT COUNT(DISTINCT tagged_by) as count FROM message_tags'
+                    result = await self._execute_d1(sql)
+                
+                if result and len(result) > 0 and "results" in result[0]:
+                    count = result[0]["results"][0].get("count", 0)
+                    return count
+                return 0
+            except Exception as e:
+                print(f"❌ 獲取活躍用戶數失敗: {e}")
+                return 0
