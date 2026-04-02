@@ -1017,6 +1017,38 @@ class MainMenuView(View):
             except:
                 await interaction.followup.send("❌ 查看標籤時發生錯誤")
     
+    @discord.ui.button(label="🎭 刷版區設定", style=discord.ButtonStyle.success, emoji="🎭", custom_id="reply_settings_main")
+    async def reply_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示刷版區設置菜單"""
+        guild_id = str(interaction.guild.id)
+        view = ReplySettingsView(reply_manager, guild_id)
+        
+        # 檢查是否已設置刷版區頻道
+        config = await reply_manager.get_config(guild_id)
+        
+        if config:
+            channel_id = config.get('channel_id')
+            try:
+                channel = bot.get_channel(int(channel_id))
+                channel_name = channel.name if channel else f"未知頻道 ({channel_id})"
+                description = f"當前刷版區頻道: **#{channel_name}**\n選擇一個操作："
+            except:
+                description = f"當前刷版區頻道: {channel_id}\n選擇一個操作："
+        else:
+            description = "尚未設置刷版區頻道\n選擇一個操作："
+        
+        embed = discord.Embed(
+            title="🎭 刷版區設定",
+            description=description,
+            color=discord.Color.purple()
+        )
+        embed.add_field(name="⚙️ 設置頻道", value="設置當前頻道為刷版區", inline=False)
+        embed.add_field(name="🖼️ 新增回覆", value="新增想要 bot 回覆的 GIF/貼圖/表情符號", inline=False)
+        embed.add_field(name="📊 顯示排名", value="查看觸發回覆排行榜", inline=False)
+        embed.add_field(name="🗑️ 刪除回覆", value="刪除想要 bot 回覆的 GIF/貼圖/表情符號", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+    
     @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示進階功能菜單"""
@@ -1078,6 +1110,7 @@ class BackToMenuView(View):
             embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
             print(f"🔍 已添加簽到設定按鈕到 embed", flush=True)
         
+        embed.add_field(name="🎭 刷版區設定", value="設置刷版區回覆功能", inline=False)
         embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
         
         print(f"🔍 準備編輯訊息...", flush=True)
@@ -1691,6 +1724,7 @@ async def menu_command(ctx: commands.Context):
         if is_checkin_channel:
             embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
         
+        embed.add_field(name="🎭 刷版區設定", value="設置刷版區回覆功能", inline=False)
         embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
         
         print(f"🔍 準備發送 menu 訊息", flush=True)
