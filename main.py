@@ -2315,11 +2315,19 @@ class ReplySettingsView(View):
     @discord.ui.button(label="⚙️ 設置頻道", style=discord.ButtonStyle.primary)
     async def set_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
         """設置刷版區頻道"""
+        print(f"🔍 ===== set_channel 被調用 =====", flush=True)
+        print(f"🔍 用戶: {interaction.user.name} (ID: {interaction.user.id})", flush=True)
+        print(f"🔵 頻道: {interaction.channel.name} (ID: {interaction.channel.id})", flush=True)
+        
         # 獲取當前頻道作為刷版區頻道
         guild_id = str(interaction.guild.id)
         channel_id = str(interaction.channel.id)
         
+        print(f"🔍 準備設置配置: guild_id={guild_id}, channel_id={channel_id}", flush=True)
+        
         success = await self.reply_manager.set_config(guild_id, channel_id, enabled=True)
+        
+        print(f"🔍 set_config 返回: {success}", flush=True)
         
         if success:
             embed = discord.Embed(
@@ -2330,9 +2338,12 @@ class ReplySettingsView(View):
             embed.add_field(name="功能說明", value="在此頻道中發送設定的 GIF/貼圖/表情符號時，bot 會隨機回覆", inline=False)
             embed.add_field(name="新增回覆", value="使用「🖼️ 新增回覆」來添加觸發器", inline=False)
             
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            # 不使用 ephemeral，讓用戶能看到訊息
+            await interaction.response.send_message(embed=embed)
+            print(f"✅ 設置成功訊息已發送", flush=True)
         else:
-            await interaction.response.send_message("❌ 設置刷版區頻道失敗！", ephemeral=True)
+            await interaction.response.send_message("❌ 設置刷版區頻道失敗！")
+            print(f"❌ 設置失敗訊息已發送", flush=True)
     
     @discord.ui.button(label="🖼️ 新增回覆", style=discord.ButtonStyle.secondary)
     async def add_reply(self, interaction: discord.Interaction, button: discord.ui.Button):

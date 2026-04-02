@@ -160,26 +160,48 @@ class ReplyManager:
     async def set_config(self, guild_id: str, channel_id: str, enabled: bool = True) -> bool:
         """設置回覆配置"""
         try:
+            print(f"🔍 set_config - 開始設置配置", flush=True)
+            print(f"   guild_id: {guild_id}", flush=True)
+            print(f"   channel_id: {channel_id}", flush=True)
+            print(f"   enabled: {enabled}", flush=True)
+            
             if self.use_d1:
                 # 檢查是否已存在配置
+                print(f"🔍 set_config - 檢查現有配置...", flush=True)
                 result = await self._execute_d1(
                     'SELECT * FROM reply_config WHERE guild_id = ?',
                     [guild_id]
                 )
                 
-                if result and result.get("success") and result.get("result") and len(result["result"]) > 0:
+                print(f"🔍 set_config - 查詢結果: {result}", flush=True)
+                
+                # 判斷是否有現有配置
+                has_config = False
+                if result and result.get("success") and result.get("result"):
+                    if len(result["result"]) > 0:
+                        row_result = result["result"][0]
+                        if "results" in row_result and len(row_result["results"]) > 0:
+                            has_config = True
+                            print(f"🔍 set_config - 找到現有配置", flush=True)
+                
+                if has_config:
                     # 更新配置
+                    print(f"🔍 set_config - 更新現有配置", flush=True)
                     await self._execute_d1(
                         'UPDATE reply_config SET channel_id = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?',
                         [channel_id, 1 if enabled else 0, guild_id]
                     )
+                    print(f"✅ set_config - 配置已更新", flush=True)
                 else:
                     # 插入新配置
+                    print(f"🔍 set_config - 插入新配置", flush=True)
                     await self._execute_d1(
                         'INSERT INTO reply_config (guild_id, channel_id, enabled) VALUES (?, ?, ?)',
                         [guild_id, channel_id, 1 if enabled else 0]
                     )
+                    print(f"✅ set_config - 新配置已插入", flush=True)
             else:
+                print(f"🔍 set_config - SQLite 模式", flush=True)
                 async with aiosqlite.connect(self.db_path) as db:
                     cursor = await db.execute(
                         'SELECT * FROM reply_config WHERE guild_id = ?',
@@ -200,9 +222,12 @@ class ReplyManager:
                     
                     await db.commit()
             
+            print(f"✅ set_config - 成功", flush=True)
             return True
         except Exception as e:
-            print(f"❌ 設置回覆配置失敗: {e}")
+            print(f"❌ 設置回覆配置失敗: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             return False
     
     async def get_config(self, guild_id: str) -> Optional[Dict]:
