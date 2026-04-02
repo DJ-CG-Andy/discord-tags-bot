@@ -196,11 +196,20 @@ async def on_message(message: discord.Message):
             embed.set_image(url=gif_url)
             embed.add_field(name="預覽", value="這就是新的簽到 GIF", inline=False)
             
-            await message.reply(embed=embed)
+            # 發送訊息並在 3 秒後刪除
+            reply_msg = await message.reply(embed=embed)
+            import asyncio
+            await asyncio.sleep(3)
+            await reply_msg.delete()
+            await message.delete()
             print(f"✅ 回復已發送", flush=True)
         else:
             print(f"❌ 未檢測到有效的 GIF", flush=True)
-            await message.reply("❌ 未檢測到有效的 GIF！請重新發送。")
+            error_msg = await message.reply("❌ 未檢測到有效的 GIF！請重新發送。")
+            import asyncio
+            await asyncio.sleep(2)
+            await error_msg.delete()
+            await message.delete()
             print(f"✅ 錯誤回復已發送", flush=True)
     else:
         print(f"🔍 沒有找到 GIF 更換請求", flush=True)
@@ -426,13 +435,26 @@ async def on_message(message: discord.Message):
                 embed.add_field(name="類型", value=trigger_type, inline=True)
                 embed.add_field(name="ID", value=trigger_id[-8:], inline=True)
                 
-                await message.reply(embed=embed)
+                # 發送訊息並在 3 秒後刪除，避免干擾其他用戶
+                reply_msg = await message.reply(embed=embed)
+                import asyncio
+                await asyncio.sleep(3)
+                await reply_msg.delete()
+                await message.delete()
                 print(f"✅ 回覆已新增並回復", flush=True)
             else:
-                await message.reply("❌ 新增回覆失敗！")
+                error_msg = await message.reply("❌ 新增回覆失敗！")
+                import asyncio
+                await asyncio.sleep(2)
+                await error_msg.delete()
+                await message.delete()
                 print(f"❌ 新增回覆失敗", flush=True)
         else:
-            await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
+            error_msg = await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
+            import asyncio
+            await asyncio.sleep(2)
+            await error_msg.delete()
+            await message.delete()
             print(f"❌ 未檢測到有效的觸發器", flush=True)
     
     # 檢查是否有刪除回覆請求
@@ -488,20 +510,34 @@ async def on_message(message: discord.Message):
                 )
                 embed.add_field(name="ID", value=trigger_id[-8:], inline=True)
                 
-                await message.reply(embed=embed)
+                # 發送訊息並在 3 秒後刪除
+                reply_msg = await message.reply(embed=embed)
+                import asyncio
+                await asyncio.sleep(3)
+                await reply_msg.delete()
+                await message.delete()
                 print(f"✅ 回覆已刪除並回復", flush=True)
             else:
-                await message.reply("❌ 刪除回覆失敗！")
+                error_msg = await message.reply("❌ 刪除回覆失敗！")
+                import asyncio
+                await asyncio.sleep(2)
+                await error_msg.delete()
+                await message.delete()
                 print(f"❌ 刪除回覆失敗", flush=True)
         else:
-            await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
+            error_msg = await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
+            import asyncio
+            await asyncio.sleep(2)
+            await error_msg.delete()
+            await message.delete()
             print(f"❌ 未檢測到有效的觸發器", flush=True)
     
     # 處理刷版區自動回覆
     if guild_id and channel_id:
         config = await reply_manager.get_config(guild_id)
         
-        if config and str(config.get('channel_id')) == channel_id and config.get('enabled'):
+        # 跳過 Bot 自己的訊息，避免無限循環
+        if config and str(config.get('channel_id')) == channel_id and config.get('enabled') and not message.author.bot:
             print(f"🔍 這是刷版區，檢查觸發器...", flush=True)
             
             # 獲取訊息中的觸發器
@@ -551,12 +587,12 @@ async def on_message(message: discord.Message):
                         # 記錄使用次數
                         await reply_manager.record_usage(guild_id, trigger_id, user_id)
                         
-                        # 發送回覆
+                        # 發送回覆（不使用 reply，避免被檢測為觸發器）
                         reply_trigger_type = trigger['trigger_type']
                         reply_trigger_url = trigger['trigger_url']
                         
                         if reply_trigger_type == 'gif' and reply_trigger_url:
-                            await message.reply(f"{message.author.mention}", file=discord.File(reply_trigger_url))
+                            await message.channel.send(f"{message.author.mention}", file=discord.File(reply_trigger_url))
                         elif reply_trigger_type == 'sticker' and reply_trigger_url:
                             # 貼圖需要使用 Discord API 發送
                             try:
