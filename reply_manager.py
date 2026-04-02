@@ -214,8 +214,11 @@ class ReplyManager:
                     [guild_id]
                 )
                 
+                print(f"🔍 get_config - result: {result}", flush=True)
+                
                 if result and result.get("success") and result.get("result") and len(result["result"]) > 0:
                     row_result = result["result"][0]
+                    print(f"🔍 get_config - row_result: {row_result}", flush=True)
                     if "results" in row_result and len(row_result["results"]) > 0:
                         row = row_result["results"][0]
                         return {
@@ -245,6 +248,8 @@ class ReplyManager:
             return None
         except Exception as e:
             print(f"❌ 獲取回覆配置失敗: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     async def add_trigger(self, guild_id: str, user_id: str, trigger_type: str, trigger_id: str, trigger_url: str = "") -> bool:
@@ -444,8 +449,11 @@ class ReplyManager:
                     [user_id, channel_id]
                 )
                 
+                print(f"🔍 get_add_request - result: {result}", flush=True)
+                
                 if result and result.get("success") and result.get("result") and len(result["result"]) > 0:
                     row_result = result["result"][0]
+                    print(f"🔍 get_add_request - row_result: {row_result}", flush=True)
                     if "results" in row_result and len(row_result["results"]) > 0:
                         row = row_result["results"][0]
                         request_data = {
@@ -531,8 +539,11 @@ class ReplyManager:
                     [user_id, channel_id]
                 )
                 
+                print(f"🔍 get_delete_request - result: {result}", flush=True)
+                
                 if result and result.get("success") and result.get("result") and len(result["result"]) > 0:
                     row_result = result["result"][0]
+                    print(f"🔍 get_delete_request - row_result: {row_result}", flush=True)
                     if "results" in row_result and len(row_result["results"]) > 0:
                         row = row_result["results"][0]
                         request_data = {
