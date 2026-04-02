@@ -2415,9 +2415,10 @@ class DeleteReplyConfirmationView(View):
     @discord.ui.button(label="❌ 取消", style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.edit_message(content="已取消刪除回覆", embed=None, view=None)
-            # 禁用 HTTP 服務器的日誌輸出
-            pass
-    
+
+# ========== HTTP 健康檢查服務器 ==========
+
+if __name__ == "__main__":
     # 在單獨的線程中運行 HTTP 服務器
     def start_http_server():
         with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
