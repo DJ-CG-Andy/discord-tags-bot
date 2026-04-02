@@ -1070,37 +1070,7 @@ class MainMenuView(View):
             except:
                 await interaction.followup.send("❌ 查看標籤時發生錯誤")
     
-    @discord.ui.button(label="🎭 刷版區設定", style=discord.ButtonStyle.success, emoji="🎭", custom_id="reply_settings_main")
-    async def reply_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """顯示刷版區設置菜單"""
-        guild_id = str(interaction.guild.id)
-        view = ReplySettingsView(reply_manager, guild_id)
-        
-        # 檢查是否已設置刷版區頻道
-        config = await reply_manager.get_config(guild_id)
-        
-        if config:
-            channel_id = config.get('channel_id')
-            try:
-                channel = bot.get_channel(int(channel_id))
-                channel_name = channel.name if channel else f"未知頻道 ({channel_id})"
-                description = f"當前刷版區頻道: **#{channel_name}**\n選擇一個操作："
-            except:
-                description = f"當前刷版區頻道: {channel_id}\n選擇一個操作："
-        else:
-            description = "尚未設置刷版區頻道\n選擇一個操作："
-        
-        embed = discord.Embed(
-            title="🎭 刷版區設定",
-            description=description,
-            color=discord.Color.purple()
-        )
-        embed.add_field(name="⚙️ 設置頻道", value="設置當前頻道為刷版區", inline=False)
-        embed.add_field(name="🖼️ 新增回覆", value="新增想要 bot 回覆的 GIF/貼圖/表情符號", inline=False)
-        embed.add_field(name="📊 顯示排名", value="查看觸發回覆排行榜", inline=False)
-        embed.add_field(name="🗑️ 刪除回覆", value="刪除想要 bot 回覆的 GIF/貼圖/表情符號", inline=False)
-        
-        await interaction.response.edit_message(embed=embed, view=view)
+    
     
     @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1136,16 +1106,25 @@ class BackToMenuView(View):
         print(f"🔍 Channel ID: {channel_id}", flush=True)
         
         # 檢查是否在簽到頻道
-        config = await checkin_manager.get_config(guild_id)
-        print(f"🔍 Config: {config}", flush=True)
-        
-        is_checkin_channel = config and config['channel_id'] == channel_id
+        checkin_config = await checkin_manager.get_config(guild_id)
+        is_checkin_channel = checkin_config and checkin_config['channel_id'] == channel_id
         print(f"🔍 is_checkin_channel: {is_checkin_channel}", flush=True)
         
+        # 檢查是否在刷版區頻道
+        reply_config = await reply_manager.get_config(guild_id)
+        is_reply_channel = reply_config and reply_config.get('channel_id') == channel_id and reply_config.get('enabled')
+        print(f"🔍 is_reply_channel: {is_reply_channel}", flush=True)
+        
         # 根據情況選擇 View 和 embed
-        if is_checkin_channel:
+        if is_checkin_channel and is_reply_channel:
+            view = MainMenuViewWithCheckinAndReply(guild_id=guild_id, channel_id=channel_id)
+            print(f"🔍 使用 MainMenuViewWithCheckinAndReply", flush=True)
+        elif is_checkin_channel:
             view = MainMenuViewWithCheckin(guild_id=guild_id, channel_id=channel_id)
             print(f"🔍 使用 MainMenuViewWithCheckin", flush=True)
+        elif is_reply_channel:
+            view = MainMenuViewWithReply(guild_id=guild_id, channel_id=channel_id)
+            print(f"🔍 使用 MainMenuViewWithReply", flush=True)
         else:
             view = MainMenuView(guild_id=guild_id, channel_id=channel_id)
             print(f"🔍 使用 MainMenuView", flush=True)
@@ -1163,7 +1142,10 @@ class BackToMenuView(View):
             embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
             print(f"🔍 已添加簽到設定按鈕到 embed", flush=True)
         
-        embed.add_field(name="🎭 刷版區設定", value="設置刷版區回覆功能", inline=False)
+        if is_reply_channel:
+            embed.add_field(name="🎭 刷版區設定", value="設置刷版區回覆功能", inline=False)
+            print(f"🔍 已添加刷版區設定按鈕到 embed", flush=True)
+        
         embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
         
         print(f"🔍 準備編輯訊息...", flush=True)
@@ -1263,7 +1245,99 @@ class MainMenuViewWithCheckin(View):
         
         await interaction.response.edit_message(embed=embed, view=view)
     
-    @discord.ui.button(label="🎭 刷版區設定", style=discord.ButtonStyle.success, emoji="🎭", custom_id="reply_settings")
+    @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features_with_checkin")
+    async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示進階功能菜單"""
+        view = AdvancedFeaturesView(guild_id=self.guild_id, channel_id=self.channel_id)
+        embed = discord.Embed(
+            title="📥 進階功能",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="📥 導入歷史", value="導入頻道的歷史訊息並添加標籤", inline=False)
+        embed.add_field(name="📊 統計數據", value="查看系統統計和標籤使用情況", inline=False)
+        embed.add_field(name="🗑️ 刪除標籤", value="刪除不需要的標籤", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class MainMenuViewWithReply(View):
+    """主選單 - 包含刷版區設定按鈕"""
+    
+    def __init__(self, guild_id: Optional[str] = None, channel_id: Optional[str] = None):
+        super().__init__(timeout=None)
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+    
+    @discord.ui.button(label="🏷️ 新增標籤", style=discord.ButtonStyle.primary, emoji="🏷️", custom_id="add_tag_with_reply")
+    async def add_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示新增標籤模態框"""
+        modal = AddTagModal()
+        await interaction.response.send_modal(modal)
+    
+    @discord.ui.button(label="🔍 搜索標籤", style=discord.ButtonStyle.secondary, emoji="🔍", custom_id="search_tag_with_reply")
+    async def search_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示搜索標籤模態框"""
+        modal = SearchTagModal()
+        await interaction.response.send_modal(modal)
+    
+    @discord.ui.button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋", custom_id="view_tags_with_reply")
+    async def view_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示所有標籤"""
+        print("🔍 ===== 開始查看標籤（帶刷版區） =====")
+        print(f"🔍 交互來自: {interaction.user.name} ({interaction.user.id})")
+        try:
+            print("🔍 正在獲取標籤...")
+            tags = await tag_manager.get_available_tags()
+            print(f"🔍 獲取到 {len(tags)} 個標籤")
+            
+            if not tags:
+                print("🔍 沒有標籤，顯示提示訊息")
+                embed = discord.Embed(
+                    title="📋 標籤列表",
+                    description="暫無可用標籤，請先新增標籤！",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="💡 提示", value="使用 `!menu` 點擊「🏷️ 新增標籤」來創建新標籤", inline=False)
+                await interaction.response.edit_message(embed=embed)
+                return
+            
+            # 分組顯示標籤
+            tag_list = []
+            for i, tag in enumerate(tags):
+                print(f"🔍 標籤 {i}: name={tag.name}, emoji={tag.emoji}, emoji_type={type(tag.emoji)}")
+                # 使用 display_emoji 來顯示 emoji 或圖片連結
+                emoji_display = display_emoji(tag.emoji)
+                print(f"🔍 emoji_display: {emoji_display}, type={type(emoji_display)}")
+                tag_list.append(f"{emoji_display} **{tag.name}**")
+                if tag.description:
+                    tag_list[-1] += f" - {tag.description}"
+                print(f"🔍 tag_list[{i}]: {tag_list[-1]}")
+            
+            print(f"🔍 準備發送 embed，tag_list 長度: {len(tag_list)}")
+            embed = discord.Embed(
+                title="📋 所有標籤",
+                description="\n".join(tag_list),
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="總數", value=f"共有 {len(tags)} 個標籤", inline=True)
+            
+            # 添加返回按鈕
+            view = BackToMenuView(guild_id=self.guild_id, channel_id=self.channel_id)
+            print(f"🔍 準備編輯訊息...")
+            await interaction.response.edit_message(embed=embed, view=view)
+            print("🔍 ===== 查看標籤完成 =====")
+            
+        except Exception as e:
+            print(f"❌ 查看標籤時發生錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                await interaction.response.send_message(f"❌ 查看標籤時發生錯誤: {str(e)}")
+            except:
+                print("❌ 無法發送錯誤訊息")
+                await interaction.followup.send(f"❌ 查看標籤時發生錯誤: {str(e)}")
+    
+    @discord.ui.button(label="🎭 刷版區設定", style=discord.ButtonStyle.success, emoji="🎭", custom_id="reply_settings_with_reply")
     async def reply_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示刷版區設置菜單"""
         guild_id = str(interaction.guild.id)
@@ -1295,7 +1369,147 @@ class MainMenuViewWithCheckin(View):
         
         await interaction.response.edit_message(embed=embed, view=view)
     
-    @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features_with_checkin")
+    @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features_with_reply")
+    async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示進階功能菜單"""
+        view = AdvancedFeaturesView(guild_id=self.guild_id, channel_id=self.channel_id)
+        embed = discord.Embed(
+            title="📥 進階功能",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="📥 導入歷史", value="導入頻道的歷史訊息並添加標籤", inline=False)
+        embed.add_field(name="📊 統計數據", value="查看系統統計和標籤使用情況", inline=False)
+        embed.add_field(name="🗑️ 刪除標籤", value="刪除不需要的標籤", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class MainMenuViewWithCheckinAndReply(View):
+    """主選單 - 包含簽到設定和刷版區設定按鈕"""
+    
+    def __init__(self, guild_id: Optional[str] = None, channel_id: Optional[str] = None):
+        super().__init__(timeout=None)
+        self.guild_id = guild_id
+        self.channel_id = channel_id
+    
+    @discord.ui.button(label="🏷️ 新增標籤", style=discord.ButtonStyle.primary, emoji="🏷️", custom_id="add_tag_with_checkin_reply")
+    async def add_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示新增標籤模態框"""
+        modal = AddTagModal()
+        await interaction.response.send_modal(modal)
+    
+    @discord.ui.button(label="🔍 搜索標籤", style=discord.ButtonStyle.secondary, emoji="🔍", custom_id="search_tag_with_checkin_reply")
+    async def search_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示搜索標籤模態框"""
+        modal = SearchTagModal()
+        await interaction.response.send_modal(modal)
+    
+    @discord.ui.button(label="📋 查看標籤", style=discord.ButtonStyle.secondary, emoji="📋", custom_id="view_tags_with_checkin_reply")
+    async def view_tags(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示所有標籤"""
+        print("🔍 ===== 開始查看標籤（帶簽到和刷版區） =====")
+        print(f"🔍 交互來自: {interaction.user.name} ({interaction.user.id})")
+        try:
+            print("🔍 正在獲取標籤...")
+            tags = await tag_manager.get_available_tags()
+            print(f"🔍 獲取到 {len(tags)} 個標籤")
+            
+            if not tags:
+                print("🔍 沒有標籤，顯示提示訊息")
+                embed = discord.Embed(
+                    title="📋 標籤列表",
+                    description="暫無可用標籤，請先新增標籤！",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="💡 提示", value="使用 `!menu` 點擊「🏷️ 新增標籤」來創建新標籤", inline=False)
+                await interaction.response.edit_message(embed=embed)
+                return
+            
+            # 分組顯示標籤
+            tag_list = []
+            for i, tag in enumerate(tags):
+                print(f"🔍 標籤 {i}: name={tag.name}, emoji={tag.emoji}, emoji_type={type(tag.emoji)}")
+                # 使用 display_emoji 來顯示 emoji 或圖片連結
+                emoji_display = display_emoji(tag.emoji)
+                print(f"🔍 emoji_display: {emoji_display}, type={type(emoji_display)}")
+                tag_list.append(f"{emoji_display} **{tag.name}**")
+                if tag.description:
+                    tag_list[-1] += f" - {tag.description}"
+                print(f"🔍 tag_list[{i}]: {tag_list[-1]}")
+            
+            print(f"🔍 準備發送 embed，tag_list 長度: {len(tag_list)}")
+            embed = discord.Embed(
+                title="📋 所有標籤",
+                description="\n".join(tag_list),
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="總數", value=f"共有 {len(tags)} 個標籤", inline=True)
+            
+            # 添加返回按鈕
+            view = BackToMenuView(guild_id=self.guild_id, channel_id=self.channel_id)
+            print(f"🔍 準備編輯訊息...")
+            await interaction.response.edit_message(embed=embed, view=view)
+            print("🔍 ===== 查看標籤完成 =====")
+            
+        except Exception as e:
+            print(f"❌ 查看標籤時發生錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                await interaction.response.send_message(f"❌ 查看標籤時發生錯誤: {str(e)}")
+            except:
+                print("❌ 無法發送錯誤訊息")
+                await interaction.followup.send(f"❌ 查看標籤時發生錯誤: {str(e)}")
+    
+    @discord.ui.button(label="✨ 簽到設定", style=discord.ButtonStyle.success, emoji="✨", custom_id="checkin_settings_with_reply")
+    async def checkin_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示簽到設置菜單"""
+        guild_id = str(interaction.guild.id)
+        view = CheckinSettingsView(checkin_manager, guild_id)
+        embed = discord.Embed(
+            title="✨ 簽到設定",
+            description="選擇一個操作：",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="⏰ 調整時間", value="調整每日簽到的時間界限", inline=False)
+        embed.add_field(name="🖼️ 更換 GIF", value="更換簽到成功時顯示的 GIF", inline=False)
+        embed.add_field(name="📊 顯示排名", value="查看簽到排行榜", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+    
+    @discord.ui.button(label="🎭 刷版區設定", style=discord.ButtonStyle.success, emoji="🎭", custom_id="reply_settings_with_checkin_reply")
+    async def reply_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """顯示刷版區設置菜單"""
+        guild_id = str(interaction.guild.id)
+        view = ReplySettingsView(reply_manager, guild_id)
+        
+        # 檢查是否已設置刷版區頻道
+        config = await reply_manager.get_config(guild_id)
+        
+        if config:
+            channel_id = config.get('channel_id')
+            try:
+                channel = bot.get_channel(int(channel_id))
+                channel_name = channel.name if channel else f"未知頻道 ({channel_id})"
+                description = f"當前刷版區頻道: **#{channel_name}**\n選擇一個操作："
+            except:
+                description = f"當前刷版區頻道: {channel_id}\n選擇一個操作："
+        else:
+            description = "尚未設置刷版區頻道\n選擇一個操作："
+        
+        embed = discord.Embed(
+            title="🎭 刷版區設定",
+            description=description,
+            color=discord.Color.purple()
+        )
+        embed.add_field(name="⚙️ 設置頻道", value="設置當前頻道為刷版區", inline=False)
+        embed.add_field(name="🖼️ 新增回覆", value="新增想要 bot 回覆的 GIF/貼圖/表情符號", inline=False)
+        embed.add_field(name="📊 顯示排名", value="查看觸發回覆排行榜", inline=False)
+        embed.add_field(name="🗑️ 刪除回覆", value="刪除想要 bot 回覆的 GIF/貼圖/表情符號", inline=False)
+        
+        await interaction.response.edit_message(embed=embed, view=view)
+    
+    @discord.ui.button(label="📥 進階功能", style=discord.ButtonStyle.success, emoji="📥", custom_id="advanced_features_with_checkin_reply")
     async def advanced_features(self, interaction: discord.Interaction, button: discord.ui.Button):
         """顯示進階功能菜單"""
         view = AdvancedFeaturesView(guild_id=self.guild_id, channel_id=self.channel_id)
@@ -1756,14 +1970,28 @@ async def menu_command(ctx: commands.Context):
         channel_id = str(ctx.channel.id)
         
         # 檢查是否在簽到頻道
-        config = await checkin_manager.get_config(guild_id)
-        is_checkin_channel = config and config['channel_id'] == channel_id
+        checkin_config = await checkin_manager.get_config(guild_id)
+        is_checkin_channel = checkin_config and checkin_config['channel_id'] == channel_id
+        print(f"🔍 is_checkin_channel: {is_checkin_channel}", flush=True)
+        
+        # 檢查是否在刷版區頻道
+        reply_config = await reply_manager.get_config(guild_id)
+        is_reply_channel = reply_config and reply_config.get('channel_id') == channel_id and reply_config.get('enabled')
+        print(f"🔍 is_reply_channel: {is_reply_channel}", flush=True)
         
         # 根據情況選擇 View
-        if is_checkin_channel:
+        if is_checkin_channel and is_reply_channel:
+            view = MainMenuViewWithCheckinAndReply(guild_id=guild_id, channel_id=channel_id)
+            print(f"🔍 使用 MainMenuViewWithCheckinAndReply", flush=True)
+        elif is_checkin_channel:
             view = MainMenuViewWithCheckin(guild_id=guild_id, channel_id=channel_id)
+            print(f"🔍 使用 MainMenuViewWithCheckin", flush=True)
+        elif is_reply_channel:
+            view = MainMenuViewWithReply(guild_id=guild_id, channel_id=channel_id)
+            print(f"🔍 使用 MainMenuViewWithReply", flush=True)
         else:
             view = MainMenuView(guild_id=guild_id, channel_id=channel_id)
+            print(f"🔍 使用 MainMenuView", flush=True)
         
         embed = discord.Embed(
             title="🎮 Discord 標籤系統",
@@ -1777,7 +2005,9 @@ async def menu_command(ctx: commands.Context):
         if is_checkin_channel:
             embed.add_field(name="✨ 簽到設定", value="設置每日簽到功能", inline=False)
         
-        embed.add_field(name="🎭 刷版區設定", value="設置刷版區回覆功能", inline=False)
+        if is_reply_channel:
+            embed.add_field(name="🎭 刷版區設定", value="設置刷版區回覆功能", inline=False)
+        
         embed.add_field(name="📥 進階功能", value="導入歷史、統計等", inline=False)
         
         print(f"🔍 準備發送 menu 訊息", flush=True)
