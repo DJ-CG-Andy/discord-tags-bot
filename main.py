@@ -2198,6 +2198,7 @@ if __name__ == "__main__":
             self.wfile.write(b"Discord Tag System Bot is running!")
         
         def log_message(self, format, *args):
+            pass  # 抑制默認的日誌輸出
 
 # ========== 刷版區回覆系統 View ==========
 
