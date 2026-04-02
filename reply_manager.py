@@ -454,6 +454,51 @@ class ReplyManager:
             print(f"❌ 獲取回覆使用統計失敗: {e}")
             return []
     
+    async def get_user_trigger_stats(self, guild_id: str) -> List[Dict]:
+        """獲取用戶觸發回覆統計"""
+        try:
+            stats = []
+            if self.use_d1:
+                result = await self._execute_d1(
+                    '''SELECT ru.user_id, COUNT(ru.id) as trigger_count
+                       FROM reply_usage ru
+                       JOIN reply_triggers rt ON ru.trigger_id = rt.trigger_id
+                       WHERE rt.guild_id = ?
+                       GROUP BY ru.user_id
+                       ORDER BY trigger_count DESC''',
+                    [guild_id]
+                )
+                
+                if result and result.get("success") and result.get("result"):
+                    for row_result in result["result"]:
+                        if "results" in row_result:
+                            for row in row_result["results"]:
+                                stats.append({
+                                    'user_id': row.get("user_id"),
+                                    'trigger_count': row.get("trigger_count", 0)
+                                })
+            else:
+                async with aiosqlite.connect(self.db_path) as db:
+                    async with db.execute(
+                        '''SELECT ru.user_id, COUNT(ru.id) as trigger_count
+                           FROM reply_usage ru
+                           JOIN reply_triggers rt ON ru.trigger_id = rt.trigger_id
+                           WHERE rt.guild_id = ?
+                           GROUP BY ru.user_id
+                           ORDER BY trigger_count DESC''',
+                        (guild_id,)
+                    ) as cursor:
+                        rows = await cursor.fetchall()
+                        for row in rows:
+                            stats.append({
+                                'user_id': row[0],
+                                'trigger_count': row[1]
+                            })
+            return stats
+        except Exception as e:
+            print(f"❌ 獲取用戶觸發統計失敗: {e}")
+            return []
+    
     async def set_add_request(self, user_id: str, channel_id: str, guild_id: str, timeout_seconds: int = 120) -> bool:
         """設置新增回覆請求"""
         try:

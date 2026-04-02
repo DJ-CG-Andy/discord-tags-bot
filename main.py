@@ -2340,9 +2340,9 @@ class ReplySettingsView(View):
         view = AddReplyConfirmationView(self.reply_manager, self.guild_id, str(interaction.channel.id))
         await interaction.response.send_message(embed=embed, view=view)
     
-    @discord.ui.button(label="📊 顯示排名", style=discord.ButtonStyle.secondary)
-    async def show_leaderboard(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # 顯示排名
+    @discord.ui.button(label="📊 回覆排名", style=discord.ButtonStyle.secondary)
+    async def show_reply_leaderboard(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 顯示回覆排名（GIF/貼圖/表情符號使用次數）
         stats = await self.reply_manager.get_usage_stats(self.guild_id)
         
         if not stats:
@@ -2375,6 +2375,37 @@ class ReplySettingsView(View):
                 embed.add_field(
                     name=f"#{i+1} {trigger_display}",
                     value=f"觸發次數: {usage_count}",
+                    inline=False
+                )
+        
+        await interaction.response.send_message(embed=embed)
+    
+    @discord.ui.button(label="👤 用戶排名", style=discord.ButtonStyle.secondary)
+    async def show_user_leaderboard(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 顯示用戶排名（用戶觸發bot回覆次數）
+        stats = await self.reply_manager.get_user_trigger_stats(self.guild_id)
+        
+        if not stats:
+            embed = discord.Embed(
+                title="👤 用戶觸發排行榜",
+                description="暫無用戶數據",
+                color=discord.Color.orange()
+            )
+            embed.add_field(name="💡 提示", value="用戶還沒有觸發過回覆！", inline=False)
+        else:
+            embed = discord.Embed(
+                title="👤 用戶觸發排行榜",
+                description=f"共有 {len(stats)} 位用戶",
+                color=discord.Color.purple()
+            )
+            
+            for i, stat in enumerate(stats[:10]):
+                user_id = stat['user_id']
+                trigger_count = stat['trigger_count']
+                
+                embed.add_field(
+                    name=f"#{i+1} <@{user_id}>",
+                    value=f"觸發次數: {trigger_count}",
                     inline=False
                 )
         
