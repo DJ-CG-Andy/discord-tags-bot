@@ -451,6 +451,8 @@ async def on_message(message: discord.Message):
                 await reply_msg.delete()
                 await message.delete()
                 print(f"✅ 回覆已新增並回復", flush=True)
+                # 新增回覆完成後直接返回，避免繼續執行自動回覆邏輯
+                return
             else:
                 error_msg = await message.reply("❌ 新增回覆失敗！")
                 import asyncio
@@ -458,6 +460,7 @@ async def on_message(message: discord.Message):
                 await error_msg.delete()
                 await message.delete()
                 print(f"❌ 新增回覆失敗", flush=True)
+                return
         else:
             error_msg = await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
             import asyncio
@@ -465,6 +468,7 @@ async def on_message(message: discord.Message):
             await error_msg.delete()
             await message.delete()
             print(f"❌ 未檢測到有效的觸發器", flush=True)
+            return
     
     # 檢查是否有刪除回覆請求
     delete_request = await reply_manager.get_delete_request(user_id, channel_id)
@@ -526,6 +530,8 @@ async def on_message(message: discord.Message):
                 await reply_msg.delete()
                 await message.delete()
                 print(f"✅ 回覆已刪除並回復", flush=True)
+                # 刪除回覆完成後直接返回，避免繼續執行自動回覆邏輯
+                return
             else:
                 error_msg = await message.reply("❌ 刪除回覆失敗！")
                 import asyncio
@@ -533,6 +539,7 @@ async def on_message(message: discord.Message):
                 await error_msg.delete()
                 await message.delete()
                 print(f"❌ 刪除回覆失敗", flush=True)
+                return
         else:
             error_msg = await message.reply("❌ 未檢測到有效的 GIF/貼圖/表情符號！請重新發送。")
             import asyncio
@@ -540,6 +547,7 @@ async def on_message(message: discord.Message):
             await error_msg.delete()
             await message.delete()
             print(f"❌ 未檢測到有效的觸發器", flush=True)
+            return
     
     # 處理刷版區自動回覆
     if guild_id and channel_id:
