@@ -2403,8 +2403,15 @@ class ReplySettingsView(View):
                 user_id = stat['user_id']
                 trigger_count = stat['trigger_count']
                 
+                # 獲取用戶顯示名稱
+                member = interaction.guild.get_member(int(user_id))
+                if member:
+                    user_display = member.display_name
+                else:
+                    user_display = f"Unknown ({user_id})"
+                
                 embed.add_field(
-                    name=f"#{i+1} <@{user_id}>",
+                    name=f"#{i+1} {user_display}",
                     value=f"觸發次數: {trigger_count}",
                     inline=False
                 )
