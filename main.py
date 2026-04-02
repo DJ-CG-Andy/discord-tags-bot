@@ -536,6 +536,12 @@ async def on_message(message: discord.Message):
     if guild_id and channel_id:
         config = await reply_manager.get_config(guild_id)
         
+        print(f"🔍 檢查刷版區配置: {config}", flush=True)
+        print(f"🔍 頻道 ID: {channel_id}", flush=True)
+        print(f"🔍 配置頻道 ID: {config.get('channel_id') if config else None}", flush=True)
+        print(f"🔍 是否啟用: {config.get('enabled') if config else None}", flush=True)
+        print(f"🔍 是否 Bot: {message.author.bot}", flush=True)
+        
         # 跳過 Bot 自己的訊息，避免無限循環
         if config and str(config.get('channel_id')) == channel_id and config.get('enabled') and not message.author.bot:
             print(f"🔍 這是刷版區，檢查觸發器...", flush=True)
@@ -578,32 +584,50 @@ async def on_message(message: discord.Message):
             
             if trigger_id:
                 # 檢查是否有匹配的觸發器
-                triggers = await reply_manager.get_triggers(guild_id)
-                
-                for trigger in triggers:
-                    if trigger['trigger_id'] == trigger_id:
-                        print(f"✅ 找到匹配的觸發器，準備回覆...", flush=True)
-                        
-                        # 記錄使用次數
-                        await reply_manager.record_usage(guild_id, trigger_id, user_id)
-                        
-                        # 發送回覆（不使用 reply，避免被檢測為觸發器）
-                        reply_trigger_type = trigger['trigger_type']
-                        reply_trigger_url = trigger['trigger_url']
-                        
-                        if reply_trigger_type == 'gif' and reply_trigger_url:
-                            await message.channel.send(f"{message.author.mention}", file=discord.File(reply_trigger_url))
-                        elif reply_trigger_type == 'sticker' and reply_trigger_url:
-                            # 貼圖需要使用 Discord API 發送
-                            try:
-                                await message.channel.send(reply_trigger_url)
-                            except:
-                                pass
-                        elif reply_trigger_type == 'emoji' and reply_trigger_url:
-                            await message.add_reaction(reply_trigger_url)
-                        
-                        print(f"✅ 回覆已發送", flush=True)
-                        break
+                try:
+                    triggers = await reply_manager.get_triggers(guild_id)
+                    print(f"🔍 獲取到 {len(triggers)} 個觸發器", flush=True)
+                    
+                    found_match = False
+                    for trigger in triggers:
+                        print(f"🔍 檢查觸發器: ID={trigger['trigger_id'][-8:]} (目標: {trigger_id[-8:]})", flush=True)
+                        if trigger['trigger_id'] == trigger_id:
+                            print(f"✅ 找到匹配的觸發器，準備回覆...", flush=True)
+                            found_match = True
+                            
+                            # 記錄使用次數
+                            await reply_manager.record_usage(guild_id, trigger_id, user_id)
+                            
+                            # 發送回覆（使用 channel.send 而不是 reply，避免被檢測為觸發器）
+                            reply_trigger_type = trigger['trigger_type']
+                            reply_trigger_url = trigger['trigger_url']
+                            
+                            print(f"🔍 準備發送回覆: type={reply_trigger_type}, url={reply_trigger_url}", flush=True)
+                            
+                            if reply_trigger_type == 'gif' and reply_trigger_url:
+                                await message.channel.send(f"{message.author.mention}", file=discord.File(reply_trigger_url))
+                            elif reply_trigger_type == 'sticker' and reply_trigger_url:
+                                # 貼圖需要使用 Discord API 發送
+                                try:
+                                    await message.channel.send(reply_trigger_url)
+                                except Exception as e:
+                                    print(f"❌ 發送貼圖失敗: {e}", flush=True)
+                            elif reply_trigger_type == 'emoji' and reply_trigger_url:
+                                # 表情符號也使用 send 發送
+                                try:
+                                    await message.channel.send(reply_trigger_url)
+                                except Exception as e:
+                                    print(f"❌ 發送表情符號失敗: {e}", flush=True)
+                            
+                            print(f"✅ 回覆已發送", flush=True)
+                            break
+                    
+                    if not found_match:
+                        print(f"🔍 沒有找到匹配的觸發器", flush=True)
+                except Exception as e:
+                    print(f"❌ 處理刷版區回覆時發生錯誤: {e}", flush=True)
+                    import traceback
+                    traceback.print_exc()
     
     # 確保其他命令繼續正常工作
     await bot.process_commands(message)
