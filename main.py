@@ -1734,6 +1734,14 @@ class AdvancedFeaturesView(View):
         )
         embed.add_field(name="💡 提示", value="請選擇頻道，然後輸入要導入的 emoji", inline=False)
         
+        # 如果頻道數量超過 25 個，添加警告
+        if len(text_channels) > 25:
+            embed.add_field(
+                name="⚠️ 注意", 
+                value=f"伺服器共有 {len(text_channels)} 個文字頻道，但 Discord 限制最多只能顯示 25 個。如果看不到要選擇的頻道，請聯繫管理員。", 
+                inline=False
+            )
+        
         await interaction.response.edit_message(embed=embed, view=view)
     
     @discord.ui.button(label="📊 統計數據", style=discord.ButtonStyle.secondary, emoji="📊")
@@ -1806,13 +1814,15 @@ class ImportHistoryView(View):
         if not self._initialized:
             # 獲取 Select 組件（第一個組件）
             select = self.children[0]
+            # Discord Select 組件最多只能有 25 個選項
+            channels_to_show = text_channels[:25]
             select.options = [
                 discord.SelectOption(
                     label=channel.name,
                     value=str(channel.id),
                     description=f"頻道 ID: {channel.id}"
                 )
-                for channel in text_channels
+                for channel in channels_to_show
             ]
             self._initialized = True
     
