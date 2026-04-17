@@ -169,33 +169,26 @@ async def on_message(message: discord.Message):
                         )
                     except Exception as e:
                         print(f"❌ 發送貼圖失敗: {e}", flush=True)
-                        # fallback to text
                         await message.channel.send(f"{message.author.mention} {reply_content}")
                 elif message.attachments:
                     for attachment in message.attachments:
                         if attachment.content_type and 'image' in attachment.content_type:
                             try:
-                                # 下載附件並發送
-                                async def download_and_send():
-                                    async with aiohttp.ClientSession() as session:
-                                        async with session.get(attachment.url) as resp:
-                                            content = await resp.read()
-                                    ext = '.gif' if 'gif' in attachment.content_type else '.png'
-                                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-                                    temp_file.write(content)
-                                    temp_file.close()
-                                    return temp_file.name
-                                
-                                temp_path = await download_and_send()
-                                try:
-                                    await message.channel.send(
-                                        f"{message.author.mention} {reply_content if reply_content else ''}",
-                                        file=discord.File(temp_path)
-                                    )
-                                    os.unlink(temp_path)
+                                async with aiohttp.ClientSession() as session:
+                                    async with session.get(attachment.url) as resp:
+                                        content = await resp.read()
+                                ext = '.gif' if 'gif' in attachment.content_type else '.png'
+                                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+                                temp_file.write(content)
+                                temp_file.close()
+                                temp_path = temp_file.name
+                                await message.channel.send(
+                                    f"{message.author.mention} {reply_content if reply_content else ''}",
+                                    file=discord.File(temp_path)
+                                )
+                                os.unlink(temp_path)
                             except Exception as e:
                                 print(f"❌ 發送附件失敗: {e}", flush=True)
-                                # fallback to text
                                 await message.channel.send(f"{message.author.mention} {reply_content}")
                             break
                 else:
