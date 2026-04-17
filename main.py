@@ -134,6 +134,63 @@ async def on_message(message: discord.Message):
     print(f"📎 附件數量: {len(message.attachments)}", flush=True)
     print(f"🎭 貼圖數量: {len(message.stickers)}", flush=True)
     
+    # ========== 刷版區 @Bot 回覆偵測 ==========
+    # 檢查是否是回覆 Bot 的訊息（@bot 或 回覆 Bot 的訊息）
+    if guild_id and channel_id:
+        config = await reply_manager.get_config(guild_id)
+        if config and str(config.get('channel_id')) == channel_id and config.get('enabled') and not message.author.bot:
+            # 檢查是否提及了 Bot
+            bot_mentioned = bot.user.id in [m.id for m in message.mentions]
+            # 檢查是否是回覆 Bot 的訊息
+            is_reply_to_bot = message.reference and message.reference.resolved and message.reference.resolved.author.id == bot.user.id if message.reference else False
+            
+            if bot_mentioned or is_reply_to_bot:
+                print(f"🔍 檢測到用戶回覆 Bot，準備回覆...", flush=True)
+                
+                # 獲取用戶傳的訊息內容
+                reply_content = message.content
+                # 移除 @mention
+                if reply_content:
+                    for mention in message.mentions:
+                        reply_content = reply_content.replace(f"<@{mention.id}>", "").replace(f"<@!{mention.id}>", "").strip()
+                
+                # 發送回覆
+                if message.attachments:
+                    for attachment in message.attachments:
+                        if attachment.content_type and 'image' in attachment.content_type:
+                            try:
+                                await message.channel.send(
+                                    f"{message.author.mention} {reply_content if reply_content else ''}",
+                                    file=discord.File.from_attachment(attachment)
+                                )
+                            except Exception as e:
+                                print(f"❌ 發送附件失敗: {e}", flush=True)
+                            break
+                elif message.stickers:
+                    sticker = message.stickers[0]
+                    try:
+                        await message.channel.send(
+                            f"{message.author.mention} {reply_content if reply_content else ''}",
+                            sticker=sticker
+                        )
+                    except Exception as e:
+                        print(f"❌ 發送貼圖失敗: {e}", flush=True)
+                elif message.emojis:
+                    custom_emoji = message.emojis[0]
+                    try:
+                        await message.channel.send(
+                            f"{message.author.mention} {reply_content if reply_content else ''}",
+                            emoji=f"{custom_emoji}"
+                        )
+                    except Exception as e:
+                        print(f"❌ 發送表情失敗: {e}", flush=True)
+                else:
+                    # 只有文字
+                    await message.channel.send(f"{message.author.mention} {reply_content}")
+                
+                print(f"✅ Bot 回覆已發送", flush=True)
+                return
+    
     # 處理簽到 GIF 更換
     # 檢查資料庫中是否有 GIF 更換請求
     user_id = str(message.author.id)
