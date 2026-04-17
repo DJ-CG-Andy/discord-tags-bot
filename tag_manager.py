@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 from database import Database, Tag
+from emoji_utils import display_emoji
 
 @dataclass
 class TagConfig:
@@ -73,32 +74,40 @@ class TagManager:
         return default_tags
     
     async def initialize_tags(self):
-        """初始化默認標籤"""
-        for tag_config in self.default_tags:
-            existing_tag = await self.db.get_tag_by_name(tag_config.name)
-            if not existing_tag:
-                await self.db.create_tag(
-                    name=tag_config.name,
-                    category=tag_config.category,
-                    emoji=tag_config.emoji,
-                    description=tag_config.description,
-                    color=tag_config.color
-                )
+        """不初始化默認標籤 - 用戶自行創建標籤"""
+        # 不做任何事情，讓用戶自己創建標籤
+        pass
     
-    async def create_custom_tag(self, name: str, category: str, 
-                               emoji: str = "🏷️", description: str = "") -> bool:
-        """創建自定義標籤"""
-        colors = self.config.get("tag_colors", {})
-        color = colors.get(category, 5814783)
-        
-        tag_id = await self.db.create_tag(name, category, emoji, description, color)
-        return tag_id is not None
-    
+    async def create_custom_tag(self, name: str, category: str,
+                                   emoji: str = "🏷️", description: str = "", image_url: str = "") -> bool:
+            """創建自定義標籤"""
+            print(f"🔍 ===== create_custom_tag 被調用 =====", flush=True)
+            print(f"🔍 參數: name={name}, category={category}, emoji={emoji}", flush=True)
+            print(f"🔍 self.config 類型: {type(self.config)}", flush=True)
+            print(f"🔍 self.config: {self.config}", flush=True)
+            
+            colors = self.config.get("tag_colors", {})
+            print(f"🔍 colors 類型: {type(colors)}", flush=True)
+            print(f"🔍 colors: {colors}", flush=True)
+            
+            color = colors.get(category, 5814783)
+            print(f"🔍 color 類型: {type(color)}", flush=True)
+            print(f"🔍 color: {color}", flush=True)
+            
+            tag_id = await self.db.create_tag(name, category, emoji, description, image_url, color)
+            print(f"🔍 create_custom_tag 完成，tag_id={tag_id}", flush=True)
+            return tag_id is not None    
     async def get_available_tags(self, category: str = None) -> List[Tag]:
         """獲取可用標籤"""
+        print(f"🔍 get_available_tags 被調用，category={category}")
         if category:
-            return await self.db.get_tags_by_category(category)
-        return await self.db.get_all_tags()
+            print(f"🔍 按分類獲取標籤: {category}")
+            tags = await self.db.get_tags_by_category(category)
+        else:
+            print(f"🔍 獲取所有標籤")
+            tags = await self.db.get_all_tags()
+        print(f"🔍 返回 {len(tags)} 個標籤")
+        return tags
     
     async def get_tag_info(self, tag_name: str) -> Optional[Tag]:
         """獲取標籤信息"""
@@ -131,10 +140,11 @@ class TagManager:
                 output.append(f"**{tag.category.upper()}**")
                 current_category = tag.category
             
-            output.append(f"  {tag.emoji} `{tag.name}` - {tag.description}")
+            # 使用 display_emoji 函數來顯示 emoji
+            display_emoji_str = display_emoji(tag.emoji)
+            output.append(f"  {display_emoji_str} `{tag.name}` - {tag.description}")
         
-        return "\n".join(output)
-    
+        return "\n".join(output)    
     def get_category_emoji(self, category: str) -> str:
         """獲取分類對應的 emoji"""
         categories = self.config.get("tag_categories", {})
@@ -161,6 +171,7 @@ class TagManager:
             for stat in tag_stats[:5]:
                 top_tags.append({
                     'name': stat['tag'].name,
+                    'emoji': stat['tag'].emoji,
                     'count': stat['usage_count']
                 })
             

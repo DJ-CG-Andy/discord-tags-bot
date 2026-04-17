@@ -12,6 +12,7 @@ class Tag:
     category: str
     emoji: str
     description: str
+    image_url: str
     created_at: str
     color: int
 
@@ -48,6 +49,7 @@ class Database:
                     category TEXT NOT NULL,
                     emoji TEXT DEFAULT '🏷️',
                     description TEXT,
+                    image_url TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     color INTEGER DEFAULT 5814783
                 )
@@ -92,17 +94,59 @@ class Database:
                 ON message_tags(message_content)
             ''')
             
+            # 創建簽到配置表
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS checkin_config (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id TEXT NOT NULL UNIQUE,
+                    channel_id TEXT NOT NULL,
+                    checkin_time TEXT DEFAULT "00:00",
+                    gif_url TEXT DEFAULT "",
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # 創建簽到記錄表
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS checkin_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
+                    checkin_date TEXT NOT NULL,
+                    streak_days INTEGER DEFAULT 1,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, guild_id, checkin_date)
+                )
+            ''')
+            
+            # 創建簽到索引
+            await db.execute('''
+                CREATE INDEX IF NOT EXISTS idx_checkin_records_user 
+                ON checkin_records(user_id)
+            ''')
+            
+            await db.execute('''
+                CREATE INDEX IF NOT EXISTS idx_checkin_records_date 
+                ON checkin_records(checkin_date)
+            ''')
+            
+            await db.execute('''
+                CREATE INDEX IF NOT EXISTS idx_checkin_records_guild 
+                ON checkin_records(guild_id)
+            ''')
+            
             await db.commit()
     
     async def create_tag(self, name: str, category: str, emoji: str = '🏷️',
-                        description: str = "", color: int = 5814783) -> int:
+                        description: str = "", image_url: str = "", color: int = 5814783) -> int:
         """創建新標籤"""
         async with aiosqlite.connect(self.db_path) as db:
             try:
                 cursor = await db.execute(
-                    'INSERT INTO tags (name, category, emoji, description, color) '
-                    'VALUES (?, ?, ?, ?, ?)',
-                    (name, category, emoji, description, color)
+                    'INSERT INTO tags (name, category, emoji, description, image_url, color) '
+                    'VALUES (?, ?, ?, ?, ?, ?)',
+                    (name, category, emoji, description, image_url, color)
                 )
                 await db.commit()
                 return cursor.lastrowid
