@@ -127,7 +127,7 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
     
-print(f"🔍 ===== on_message 被調用 =====", flush=True)
+    print(f"🔍 ===== on_message 被調用 =====", flush=True)
     print(f"🔍 用戶: {message.author.name} (ID: {message.author.id})", flush=True)
     print(f"🔵 頻道: {message.channel.name} (ID: {message.channel.id})", flush=True)
     print(f"📝 訊息內容: {message.content[:100] if message.content else '(無文字)'}", flush=True)
