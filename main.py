@@ -604,11 +604,12 @@ async def on_message(message: discord.Message):
                         if reply_trigger_type == 'gif' and reply_trigger_url:
                             # 下载 URL 到临时文件再发送
                             async def download_url_to_temp_file(url: str) -> str:
+                                from urllib.parse import urlparse
                                 async with aiohttp.ClientSession() as session:
                                     async with session.get(url) as response:
                                         content = await response.read()
-                                path = urlparse(url).path
-                                ext = os.path.splitext(path)[1] if '.' in path else '.gif'
+                                parsed = urlparse(url)
+                                ext = os.path.splitext(parsed.path)[1] if '.' in parsed.path else '.gif'
                                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
                                 temp_file.write(content)
                                 temp_file.close()
