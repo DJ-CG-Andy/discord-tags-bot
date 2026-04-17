@@ -134,10 +134,10 @@ async def on_message(message: discord.Message):
     print(f"📎 附件數量: {len(message.attachments)}", flush=True)
     print(f"🎭 貼圖數量: {len(message.stickers)}", flush=True)
     
-    # 獲取基本資訊
-    user_id = str(message.author.id)
+    # 獲取基本資訊（初始化以避免 UnboundLocalError）
+    guild_id = str(message.guild.id) if message.guild else ""
     channel_id = str(message.channel.id)
-    guild_id = str(message.guild.id) if message.guild else None
+    user_id = str(message.author.id)
     
     # ========== 刷版區 @Bot 回覆偵測 ==========
     # 檢查是否是回覆 Bot 的訊息（@bot 或回覆 Bot 的訊息）
