@@ -127,15 +127,20 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
     
-    print(f"🔍 ===== on_message 被調用 =====", flush=True)
+print(f"🔍 ===== on_message 被調用 =====", flush=True)
     print(f"🔍 用戶: {message.author.name} (ID: {message.author.id})", flush=True)
     print(f"🔵 頻道: {message.channel.name} (ID: {message.channel.id})", flush=True)
     print(f"📝 訊息內容: {message.content[:100] if message.content else '(無文字)'}", flush=True)
     print(f"📎 附件數量: {len(message.attachments)}", flush=True)
     print(f"🎭 貼圖數量: {len(message.stickers)}", flush=True)
     
+    # 獲取基本資訊
+    user_id = str(message.author.id)
+    channel_id = str(message.channel.id)
+    guild_id = str(message.guild.id) if message.guild else None
+    
     # ========== 刷版區 @Bot 回覆偵測 ==========
-    # 檢查是否是回覆 Bot 的訊息（@bot 或 回覆 Bot 的訊息）
+    # 檢查是否是回覆 Bot 的訊息（@bot 或回覆 Bot 的訊息）
     if guild_id and channel_id:
         config = await reply_manager.get_config(guild_id)
         if config and str(config.get('channel_id')) == channel_id and config.get('enabled') and not message.author.bot:
@@ -193,10 +198,6 @@ async def on_message(message: discord.Message):
     
     # 處理簽到 GIF 更換
     # 檢查資料庫中是否有 GIF 更換請求
-    user_id = str(message.author.id)
-    channel_id = str(message.channel.id)
-    guild_id = str(message.guild.id) if message.guild else None
-    
     print(f"🔍 檢查資料庫中的 GIF 更換請求...", flush=True)
     gif_request = await checkin_manager.get_gif_change_request(user_id, channel_id)
     
