@@ -28,6 +28,7 @@ import asyncio
 import sys
 import aiohttp
 import tempfile
+import os
 from urllib.parse import urlparse
 
 # 設置 PYTHONUNBUFFERED 環境變量
