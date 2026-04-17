@@ -444,4 +444,28 @@ if __name__ == "__main__":
     # 啟動 Bot
     print("🚀 正在啟動 Discord 標籤系統 Bot...")
     print("🤖 啟動 Discord Bot...")
+    
+    # Render 需要服务监听端口
+    import threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    
+    class QuietHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'Bot is running!')
+        def log_message(self, format, *args):
+            pass
+    
+    def run_server():
+        port = int(os.getenv('PORT', 10000))
+        server = HTTPServer(('', port), QuietHandler)
+        print(f'🌐 HTTP server running on port {port}')
+        server.serve_forever()
+    
+    # 启动 HTTP 服务器在后台
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+    
     bot.run(token)
