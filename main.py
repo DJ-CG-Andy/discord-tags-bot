@@ -181,16 +181,6 @@ async def on_message(message: discord.Message):
                     except Exception as e:
                         print(f"❌ 發送貼圖失敗: {e}", flush=True)
                 else:
-                    # 只有文字（或訊息中包含自定義表情）
-                    await message.channel.send(f"{message.author.mention} {reply_content}")
-                    try:
-                        await message.channel.send(
-                            f"{message.author.mention} {reply_content if reply_content else ''}",
-                            emoji=f"{custom_emoji}"
-                        )
-                    except Exception as e:
-                        print(f"❌ 發送表情失敗: {e}", flush=True)
-                else:
                     # 只有文字
                     await message.channel.send(f"{message.author.mention} {reply_content}")
                 
