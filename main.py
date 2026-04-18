@@ -1257,28 +1257,30 @@ async def on_ready():
             return
         
         # 创建选择菜单
+        options = [
+            discord.SelectOption(
+                label=f"#{i+1} {t['trigger_type']}",
+                value=str(t['id'])
+            for i, t in enumerate(triggers[:25])
+        ]
+        
         class DeleteTriggerView(View):
             def __init__(self):
                 super().__init__(timeout=120)
-            
-            @discord.ui.select(
-                placeholder="選擇要刪除的觸發器",
-                options=[
-                    discord.SelectOption(
-                        label=f"#{i+1} {t['trigger_type']}",
-                        value=str(t['id'])
-                    for i, t in enumerate(triggers[:25])
-                ]
-            )
-            async def select_callback(self, interaction: discord.Interaction):
-                # 确认删除
-                success = await reply_manager.delete_trigger(int(interaction.data['values'][0]), guild_id)
-                if success:
-                    await interaction.response.send_message("✅ 觸發器已刪除！", ephemeral=True)
-                else:
-                    await interaction.response.send_message("❌ 刪除失敗！", ephemeral=True)
+        
+        async def select_callback(interaction: discord.Interaction):
+            selected_id = int(interaction.data['values'][0])
+            success = await reply_manager.delete_trigger(selected_id, guild_id)
+            if success:
+                await interaction.response.send_message("✅ 觸發器已刪除！", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ 刪除失敗！", ephemeral=True)
+        
+        select = discord.ui.Select(placeholder="選擇要刪除的觸發器", options=options)
+        select.callback = select_callback
         
         view = DeleteTriggerView()
+        view.add_item(select)
         await interaction.response.send_message("選擇要刪除的觸發器：", view=view, ephemeral=True)
     
     # 同步斜線命令
