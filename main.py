@@ -1233,45 +1233,53 @@ async def on_ready():
         await interaction.followup.send(embed=embed, ephemeral=True)
     
     @bot.tree.command(name="addtrigger", description="新增刷版區觸發器")
-    @app_commands.describe(trigger_type="觸發器類型", trigger_id="觸發器ID")
-    @app_commands.choices(trigger_type=[
-        app_commands.Choice(name="表情符號", value="emoji"),
-        app_commands.Choice(name="貼圖", value="sticker"),
-        app_commands.Choice(name="GIF", value="gif")
-    ])
-    async def slash_addtrigger(interaction: discord.Interaction, trigger_type: str, trigger_id: str):
-        """斜線版本 addtrigger"""
-        user_id = str(interaction.user.id)
-        channel_id = str(interaction.channel.id)
-        
-        success = await reply_manager.set_add_request(user_id, channel_id)
-        if success:
-            embed = discord.Embed(
-                title="✅ 請發送觸發內容",
-                description=f"請在這個頻道發送要設置的 {trigger_type}（{trigger_id}）",
-                color=discord.Color.green()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            await interaction.response.send_message("❌ 新增失敗，可能是之前有 pending 的請求", ephemeral=True)
+    async def slash_addtrigger(interaction: discord.Interaction):
+        """斜線版本 addtrigger - 弹出确认对话框"""
+        embed = discord.Embed(
+            title="📤 發送新的回覆",
+            description="點擊確認後，在此頻道發送要設置的 GIF/貼圖/表情符號",
+            color=discord.Color.blue()
+        )
+        view = AddReplyConfirmationView(reply_manager, str(interaction.guild.id), str(interaction.channel.id))
+        await interaction.response.send_message(embed=embed, view=view)
     
     @bot.tree.command(name="deltrigger", description="刪除刷版區觸發器")
-    @app_commands.describe(trigger_id="觸發器ID")
-    async def slash_deltrigger(interaction: discord.Interaction, trigger_id: str):
-        """斜線版本 deltrigger"""
-        user_id = str(interaction.user.id)
+    async def slash_deltrigger(interaction: discord.Interaction):
+        """斜線版本 deltrigger - 弹出确认对话框"""
+        guild_id = str(interaction.guild.id)
         channel_id = str(interaction.channel.id)
         
-        success = await reply_manager.set_delete_request(user_id, channel_id)
-        if success:
-            embed = discord.Embed(
-                title="✅ 請發送要刪除的觸發器",
-                description=f"請在這個頻道發送要刪除的觸發器內容",
-                color=discord.Color.orange()
+        # 获取当前触 发器列表供用户选择
+        triggers = await reply_manager.get_triggers(guild_id)
+        
+        if not triggers:
+            await interaction.response.send_message("目前沒有任何觸發器可以刪除！", ephemeral=True)
+            return
+        
+        # 创建选择菜单
+        class DeleteTriggerView(View):
+            def __init__(self):
+                super().__init__(timeout=120)
+            
+            @discord.ui.select(
+                placeholder="選擇要刪除的觸發器",
+                options=[
+                    discord.SelectOption(
+                        label=f"#{i+1} {t['trigger_type']}",
+                        value=str(t['id'])
+                    for i, t in enumerate(triggers[:25])
+                ]
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            await interaction.response.send_message("❌ 刪除失敗！", ephemeral=True)
+            async def select_callback(self, interaction: discord.Interaction):
+                # 确认删除
+                success = await reply_manager.delete_trigger(int(interaction.data['values'][0]), guild_id)
+                if success:
+                    await interaction.response.send_message("✅ 觸發器已刪除！", ephemeral=True)
+                else:
+                    await interaction.response.send_message("❌ 刪除失敗！", ephemeral=True)
+        
+        view = DeleteTriggerView()
+        await interaction.response.send_message("選擇要刪除的觸發器：", view=view, ephemeral=True)
     
     # 同步斜線命令
     try:
