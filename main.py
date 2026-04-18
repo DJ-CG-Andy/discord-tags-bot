@@ -1261,7 +1261,7 @@ async def on_ready():
             discord.SelectOption(
                 label=f"#{i+1} {t['trigger_type']}",
                 value=str(t['id'])
-            for i, t in enumerate(triggers[:25])
+            ) for i, t in enumerate(triggers[:25])
         ]
         
         class DeleteTriggerView(View):
