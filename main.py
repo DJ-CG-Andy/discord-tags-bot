@@ -1100,43 +1100,54 @@ async def on_ready():
     
     @bot.tree.command(name="leaderboard", description="簽到排行榜")
     async def slash_leaderboard(interaction: discord.Interaction):
-        """斜線版本 leaderboard"""
-        await interaction.response.defer()
-        
+        """斜線版本 leaderboard - 带选择菜单"""
         guild_id = str(interaction.guild.id)
         
-        # 显示总签到次数排行榜
-        total_leaderboard = await checkin_manager.get_leaderboard(guild_id, 'total')
-        # 显示连续签到排行榜
-        streak_leaderboard = await checkin_manager.get_leaderboard(guild_id, 'streak')
+        class LeaderboardSelectView(View):
+            def __init__(self):
+                super().__init__(timeout=120)
+        
+        class LeaderboardSelect(discord.ui.Select):
+            def __init__(self):
+                options = [
+                    discord.SelectOption(label="🏆 總簽到次數", value="total"),
+                    discord.SelectOption(label="🔥 連續簽到", value="streak"),
+                ]
+                super().__init__(placeholder="選擇排行榜類型", options=options)
+            
+            async def callback(self, interaction: discord.Interaction):
+                choice = interaction.data['values'][0]
+                by_streak = (choice == "streak")
+                
+                leaderboard = await checkin_manager.get_leaderboard(guild_id, by_streak=by_streak)
+                
+                if leaderboard:
+                    desc = ""
+                    for i, row in enumerate(leaderboard[:10], 1):
+                        medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                        count = row.get('value', 0)
+                        suffix = "天" if by_streak else "次"
+                        desc += f"{medal} <@{row['user_id']}>: {count} {suffix}\n"
+                else:
+                    desc = "無數據"
+                
+                embed = discord.Embed(
+                    title="📊 簽到排行榜 - " + ("連續簽到" if by_streak else "總簽到次數"),
+                    description=desc,
+                    color=discord.Color.gold()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        select = LeaderboardSelect()
+        view = LeaderboardSelectView()
+        view.add_item(select)
         
         embed = discord.Embed(
             title="📊 簽到排行榜",
             description="選擇排行榜類型",
             color=discord.Color.gold()
         )
-        
-        # 总签到次数
-        if total_leaderboard:
-            desc = ""
-            for i, row in enumerate(total_leaderboard[:10], 1):
-                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-                desc += f"{medal} <@{row['user_id']}>: {row['total_checkins']} 次\n"
-            embed.add_field(name="🏆 總簽到次數", value=desc or "無數據", inline=False)
-        else:
-            embed.add_field(name="🏆 總簽到次數", value="無數據", inline=False)
-        
-        # 连续签到
-        if streak_leaderboard:
-            desc = ""
-            for i, row in enumerate(streak_leaderboard[:10], 1):
-                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-                desc += f"{medal} <@{row['user_id']}>: {row['streak']} 天\n"
-            embed.add_field(name="🔥 連續簽到", value=desc or "無數據", inline=False)
-        else:
-            embed.add_field(name="🔥 連續簽到", value="無數據", inline=False)
-        
-        await interaction.followup.send(embed=embed)
+        await interaction.response.send_message(embed=embed, view=view)
     
     @bot.tree.command(name="setcheckin", description="設置簽到頻道和時間")
     async def slash_setcheckin(interaction: discord.Interaction):
@@ -1303,6 +1314,77 @@ async def on_ready():
         view = DeleteTriggerView()
         view.add_item(select)
         await interaction.response.send_message("選擇要刪除的觸發器：", view=view, ephemeral=True)
+    
+    @bot.tree.command(name="replyleaderboard", description="刷版區排行榜")
+    async def slash_reply_leaderboard(interaction: discord.Interaction):
+        """刷版區回覆排行榜"""
+        guild_id = str(interaction.guild.id)
+        
+        class ReplyLeaderboardSelectView(View):
+            def __init__(self):
+                super().__init__(timeout=120)
+        
+        class ReplyLeaderboardSelect(discord.ui.Select):
+            def __init__(self):
+                options = [
+                    discord.SelectOption(label="📊 回覆排名", value="reply"),
+                    discord.SelectOption(label="👤 用戶排名", value="user"),
+                ]
+                super().__init__(placeholder="選擇排行榜類型", options=options)
+            
+            async def callback(self, interaction: discord.Interaction):
+                choice = interaction.data['values'][0]
+                guild_id = str(interaction.guild.id)
+                
+                if choice == "reply":
+                    stats = await reply_manager.get_usage_stats(guild_id)
+                    
+                    if not stats:
+                        desc = "暫無回覆數據"
+                    else:
+                        desc = ""
+                        for i, stat in enumerate(stats[:10], 1):
+                            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                            t_type = stat.get('trigger_type', 'unknown')
+                            count = stat.get('usage_count', 0)
+                            desc += f"{medal} {t_type}: {count} 次\n"
+                    
+                    embed = discord.Embed(
+                        title="📊 回覆觸發排行榜",
+                        description=desc,
+                        color=discord.Color.purple()
+                    )
+                else:
+                    stats = await reply_manager.get_user_trigger_stats(guild_id)
+                    
+                    if not stats:
+                        desc = "暫無用戶數據"
+                    else:
+                        desc = ""
+                        for i, stat in enumerate(stats[:10], 1):
+                            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                            user_id = stat.get('user_id', '')
+                            count = stat.get('trigger_count', 0)
+                            desc += f"{medal} <@{user_id}>: {count} 次\n"
+                    
+                    embed = discord.Embed(
+                        title="👤 用戶觸發排行榜",
+                        description=desc,
+                        color=discord.Color.purple()
+                    )
+                
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        select = ReplyLeaderboardSelect()
+        view = ReplyLeaderboardSelectView()
+        view.add_item(select)
+        
+        embed = discord.Embed(
+            title="🎭 刷版區排行榜",
+            description="選擇排行榜類型",
+            color=discord.Color.purple()
+        )
+        await interaction.response.send_message(embed=embed, view=view)
     
     # 同步斜線命令
     try:
@@ -2828,8 +2910,37 @@ async def trigger_checkin_command(ctx: commands.Context):
 @bot.command(name="leaderboard")
 async def leaderboard_command(ctx: commands.Context):
     """顯示簽到排行榜"""
-    view = LeaderboardView(checkin_manager, str(ctx.guild.id))
+    guild_id = str(ctx.guild.id)
+    
+    total_leaderboard = await checkin_manager.get_leaderboard(guild_id, by_streak=False)
+    streak_leaderboard = await checkin_manager.get_leaderboard(guild_id, by_streak=True)
+    
     embed = discord.Embed(
+        title="📊 簽到排行榜",
+        color=discord.Color.gold()
+    )
+    
+    if total_leaderboard:
+        desc = ""
+        for i, row in enumerate(total_leaderboard[:10], 1):
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+            count = row.get('value', 0)
+            desc += f"{medal} <@{row['user_id']}>: {count} 次\n"
+        embed.add_field(name="🏆 總簽到次數", value=desc or "無數據", inline=False)
+    else:
+        embed.add_field(name="🏆 總簽到次數", value="無數據", inline=False)
+    
+    if streak_leaderboard:
+        desc = ""
+        for i, row in enumerate(streak_leaderboard[:10], 1):
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+            count = row.get('value', 0)
+            desc += f"{medal} <@{row['user_id']}>: {count} 天\n"
+        embed.add_field(name="🔥 連續簽到", value=desc or "無數據", inline=False)
+    else:
+        embed.add_field(name="🔥 連續簽到", value="無數據", inline=False)
+    
+    await ctx.send(embed=embed)
         title="📊 簽到排行榜",
         description="請選擇排行榜類型",
         color=discord.Color.gold()
