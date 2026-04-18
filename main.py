@@ -1154,6 +1154,124 @@ async def on_ready():
         ctx = SlashCtx(interaction)
         await check_config_command(ctx)
     
+    # ========== 刷版區斜線命令 ==========
+    @bot.tree.command(name="setreply", description="設置刷版區頻道")
+    async def slash_setreply(interaction: discord.Interaction):
+        """斜線版本 setreply - 設置刷版區"""
+        guild_id = str(interaction.guild.id)
+        channel_id = str(interaction.channel.id)
+        
+        success = await reply_manager.set_config(guild_id, channel_id, enabled=True)
+        if success:
+            await interaction.response.send_message(f"✅ 此頻道已設置為刷版區！", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ 設置失敗！", ephemeral=True)
+    
+    @bot.tree.command(name="disablereply", description="關閉刷版區回覆功能")
+    async def slash_disablereply(interaction: discord.Interaction):
+        """斜線版本 disablereply - 關閉刷版區"""
+        guild_id = str(interaction.guild.id)
+        
+        success = await reply_manager.set_config(guild_id, "", enabled=False)
+        if success:
+            await interaction.response.send_message("✅ 刷版區功能已關閉！", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ 關閉失敗！", ephemeral=True)
+    
+    @bot.tree.command(name="replystatus", description="查看刷版區狀態")
+    async def slash_replystatus(interaction: discord.Interaction):
+        """斜線版本 replystatus - 查看刷版區狀態"""
+        await interaction.response.defer()
+        
+        guild_id = str(interaction.guild.id)
+        config = await reply_manager.get_config(guild_id)
+        
+        if config and config.get('enabled'):
+            channel = bot.get_channel(int(config['channel_id']))
+            channel_name = channel.name if channel else config['channel_id']
+            embed = discord.Embed(
+                title="🎭 刷版區狀態",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="✅ 狀態", value="已啟用", inline=True)
+            embed.add_field(name="📌 頻道", value=f"#{channel_name}", inline=True)
+            
+            stats = await reply_manager.get_usage_stats(guild_id)
+            total = stats.get('total_uses', 0) if stats else 0
+            embed.add_field(name="📊 總使用次數", value=str(total), inline=True)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        else:
+            await interaction.followup.send("❌ 刷版區功能尚未啟用！\n使用 `/setreply` 啟用", ephemeral=True)
+    
+    @bot.tree.command(name="listtriggers", description="查看刷版區觸發器列表")
+    async def slash_listtriggers(interaction: discord.Interaction):
+        """斜線版本 listtriggers - 查看觸發器"""
+        await interaction.response.defer()
+        
+        guild_id = str(interaction.guild.id)
+        triggers = await reply_manager.get_triggers(guild_id)
+        
+        if not triggers:
+            await interaction.followup.send("目前沒有設置任何觸發器！", ephemeral=True)
+            return
+        
+        embed = discord.Embed(
+            title="🎭 刷版區觸發器",
+            description=f"共 {len(triggers)} 個觸發��",
+            color=discord.Color.blue()
+        )
+        
+        for i, t in enumerate(triggers[:10], 1):
+            embed.add_field(
+                name=f"#{i} {t['trigger_type']}",
+                value=f"ID: `{t['trigger_id'][-8:]}`",
+                inline=True
+            )
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    
+    @bot.tree.command(name="addtrigger", description="新增刷版區觸發器")
+    @app_commands.describe(trigger_type="觸發器類型", trigger_id="觸發器ID")
+    @app_commands.choices(trigger_type=[
+        app_commands.Choice(name="表情符號", value="emoji"),
+        app_commands.Choice(name="貼圖", value="sticker"),
+        app_commands.Choice(name="GIF", value="gif")
+    ])
+    async def slash_addtrigger(interaction: discord.Interaction, trigger_type: str, trigger_id: str):
+        """斜線版本 addtrigger"""
+        user_id = str(interaction.user.id)
+        channel_id = str(interaction.channel.id)
+        
+        success = await reply_manager.set_add_request(user_id, channel_id)
+        if success:
+            embed = discord.Embed(
+                title="✅ 請發送觸發內容",
+                description=f"請在這個頻道發送要設置的 {trigger_type}（{trigger_id}）",
+                color=discord.Color.green()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ 新增失敗，可能是之前有 pending 的請求", ephemeral=True)
+    
+    @bot.tree.command(name="deltrigger", description="刪除刷版區觸發器")
+    @app_commands.describe(trigger_id="觸發器ID")
+    async def slash_deltrigger(interaction: discord.Interaction, trigger_id: str):
+        """斜線版本 deltrigger"""
+        user_id = str(interaction.user.id)
+        channel_id = str(interaction.channel.id)
+        
+        success = await reply_manager.set_delete_request(user_id, channel_id)
+        if success:
+            embed = discord.Embed(
+                title="✅ 請發送要刪除的觸發器",
+                description=f"請在這個頻道發送要刪除的觸發器內容",
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ 刪除失敗！", ephemeral=True)
+    
     # 同步斜線命令
     try:
         synced = await bot.tree.sync()
