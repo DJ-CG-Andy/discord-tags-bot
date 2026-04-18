@@ -2962,8 +2962,6 @@ class ReplySettingsView(View):
             embed.description = description
         
         await interaction.response.send_message(embed=embed)
-        
-        await interaction.response.send_message(embed=embed)
     
     @discord.ui.button(label="🗑️ 刪除回覆", style=discord.ButtonStyle.secondary)
     async def delete_reply(self, interaction: discord.Interaction, button: discord.ui.Button):
