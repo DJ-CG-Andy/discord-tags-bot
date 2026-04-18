@@ -1056,6 +1056,86 @@ async def on_ready():
             print("✅ 沒有舊的斜線命令需要清除")
     except Exception as e:
         print(f"⚠️ 清除斜線命令時發生錯誤: {e}")
+    
+    # ========== 斜線命令 (與前綴命令並用) ==========
+    @bot.tree.command(name="menu", description="打開交互式菜單")
+    async def slash_menu(interaction: discord.Interaction):
+        """斜線版本 menu"""
+        await interaction.response.defer()
+        ctx = type('Ctx', (), {
+            'author': interaction.user,
+            'channel': interaction.channel,
+            'guild': interaction.guild,
+            'send': lambda x: interaction.followup.send(x, ephemeral=True)
+        })()
+        await menu_command(ctx)
+    
+    @bot.tree.command(name="status", description="查看機器人狀態")
+    async def slash_status(interaction: discord.Interaction):
+        """斜線版本 status"""
+        await interaction.response.defer()
+        ctx = type('Ctx', (), {
+            'author': interaction.user,
+            'channel': interaction.channel,
+            'guild': interaction.guild,
+            'send': lambda x: interaction.followup.send(x, ephemeral=True)
+        })()
+        await status_command(ctx)
+    
+    @bot.tree.command(name="checkin", description="每日簽到")
+    async def slash_checkin(interaction: discord.Interaction):
+        """斜線版本 checkin"""
+        await interaction.response.defer()
+        ctx = type('Ctx', (), {
+            'author': interaction.user,
+            'channel': interaction.channel,
+            'guild': interaction.guild,
+            'send': lambda x: interaction.followup.send(x, ephemeral=True)
+        })()
+        await checkin_command(ctx)
+    
+    @bot.tree.command(name="leaderboard", description="簽到排行榜")
+    async def slash_leaderboard(interaction: discord.Interaction):
+        """斜線版本 leaderboard"""
+        await interaction.response.defer()
+        ctx = type('Ctx', (), {
+            'author': interaction.user,
+            'channel': interaction.channel,
+            'guild': interaction.guild,
+            'send': lambda x: interaction.followup.send(x, ephemeral=True)
+        })()
+        await leaderboard_command(ctx)
+    
+    @bot.tree.command(name="setcheckin", description="設置簽到頻道和時間")
+    async def slash_setcheckin(interaction: discord.Interaction):
+        """斜線版本 setcheckin"""
+        await interaction.response.defer()
+        ctx = type('Ctx', (), {
+            'author': interaction.user,
+            'channel': interaction.channel,
+            'guild': interaction.guild,
+            'send': lambda x: interaction.followup.send(x, ephemeral=True)
+        })()
+        await setcheckin_command(ctx)
+    
+    @bot.tree.command(name="check_config", description="檢查簽到配置")
+    async def slash_check_config(interaction: discord.Interaction):
+        """斜線版本 check_config"""
+        await interaction.response.defer()
+        ctx = type('Ctx', (), {
+            'author': interaction.user,
+            'channel': interaction.channel,
+            'guild': interaction.guild,
+            'send': lambda x: interaction.followup.send(x, ephemeral=True)
+        })()
+        await check_config_command(ctx)
+    
+    # 同步斜線命令
+    try:
+        synced = await bot.tree.sync()
+        print(f"✅ 已同步 {len(synced)} 個斜線命令")
+    except Exception as e:
+        print(f"⚠️ 同步斜線命令失敗: {e}")
 
 # ========== 主菜單 ==========
 
