@@ -2941,11 +2941,6 @@ async def leaderboard_command(ctx: commands.Context):
         embed.add_field(name="🔥 連續簽到", value="無數據", inline=False)
     
     await ctx.send(embed=embed)
-        title="📊 簽到排行榜",
-        description="請選擇排行榜類型",
-        color=discord.Color.gold()
-    )
-    await ctx.send(embed=embed, view=view)
 
 # ========== 運行 Bot ==========
 
