@@ -1198,7 +1198,7 @@ async def on_ready():
             embed.add_field(name="📌 頻道", value=f"#{channel_name}", inline=True)
             
             stats = await reply_manager.get_usage_stats(guild_id)
-            total = stats.get('total_uses', 0) if stats else 0
+            total = sum(s.get('usage_count', 0) for s in stats) if stats else 0
             embed.add_field(name="📊 總使用次數", value=str(total), inline=True)
             
             await interaction.followup.send(embed=embed, ephemeral=True)
