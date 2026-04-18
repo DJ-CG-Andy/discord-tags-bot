@@ -1103,19 +1103,40 @@ async def on_ready():
         """斜線版本 leaderboard"""
         await interaction.response.defer()
         
-        class SlashCtx:
-            def __init__(self, interaction):
-                self.user = interaction.user
-                self.author = interaction.user
-                self.channel = interaction.channel
-                self.guild = interaction.guild
-                self.interaction = interaction
-            
-            async def send(self, content=None, **kwargs):
-                await self.interaction.followup.send(content, **kwargs, ephemeral=False)
+        guild_id = str(interaction.guild.id)
         
-        ctx = SlashCtx(interaction)
-        await leaderboard_command(ctx)
+        # 显示总签到次数排行榜
+        total_leaderboard = await checkin_manager.get_leaderboard(guild_id, 'total')
+        # 显示连续签到排行榜
+        streak_leaderboard = await checkin_manager.get_leaderboard(guild_id, 'streak')
+        
+        embed = discord.Embed(
+            title="📊 簽到排行榜",
+            description="選擇排行榜類型",
+            color=discord.Color.gold()
+        )
+        
+        # 总签到次数
+        if total_leaderboard:
+            desc = ""
+            for i, row in enumerate(total_leaderboard[:10], 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                desc += f"{medal} <@{row['user_id']}>: {row['total_checkins']} 次\n"
+            embed.add_field(name="🏆 總簽到次數", value=desc or "無數據", inline=False)
+        else:
+            embed.add_field(name="🏆 總簽到次數", value="無數據", inline=False)
+        
+        # 连续签到
+        if streak_leaderboard:
+            desc = ""
+            for i, row in enumerate(streak_leaderboard[:10], 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                desc += f"{medal} <@{row['user_id']}>: {row['streak']} 天\n"
+            embed.add_field(name="🔥 連續簽到", value=desc or "無數據", inline=False)
+        else:
+            embed.add_field(name="🔥 連續簽到", value="無數據", inline=False)
+        
+        await interaction.followup.send(embed=embed)
     
     @bot.tree.command(name="setcheckin", description="設置簽到頻道和時間")
     async def slash_setcheckin(interaction: discord.Interaction):
