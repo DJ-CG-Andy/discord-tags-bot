@@ -1007,6 +1007,13 @@ async def on_ready():
     print(f"✅ [{INSTANCE_ID}] {bot.user.name} 已啟動!")
     print(f"✅ 服務器: {len(bot.guilds)}")
     print(f"✅ 前綴: {config.get('prefix', '!')}")
+
+    # 檢查 Discord API 速率限制狀態
+    global_rate_limit = bot.http.global_rate_limit
+    if global_rate_limit:
+        remaining = global_rate_limit.remaining
+        reset_time = global_rate_limit.reset_time
+        print(f"🔍 API 速率限制: 剩餘 {remaining} 次, 重置時間 {reset_time}")
     
     # 初始化數據庫
     print(f"🔍 資料庫路徑: {DB_PATH}", flush=True)
@@ -3258,11 +3265,27 @@ if __name__ == "__main__":
     # 等待 HTTP 服務器完全啟動
     import time
 
-    # 更長的延遲以等待 API 速率限制重置（5分鐘）
+    # 延遲以等待 API 速率限制重置（5分鐘）
     print("⏳ 等待 300 秒後再啟動 Bot（等待 API 速率限制重置）...")
+    print("💡 如遇到 429 錯誤，可能是之前的延遲不夠，請等待更長時間...")
     time.sleep(300)
 
     # 啟動 Bot
     print("🚀 正在啟動 Discord 標籤系統 Bot...")
     print("🤖 啟動 Discord Bot...")
-    bot.run(token)
+
+    # 添加錯誤處理
+    try:
+        bot.run(token)
+    except Exception as e:
+        error_msg = str(e)
+        print(f"❌ Bot 啟動錯誤: {error_msg}")
+
+        # 檢查是否為 429 錯誤
+        if "429" in error_msg or "Too Many Requests" in error_msg:
+            print("⚠️ 429 速率限制仍然存在")
+            print("💡 解決方案:")
+            print("   1. 等待更長時間（建議 30 分鐘到 1 小時）")
+            print("   2. 檢查是否有其他程式也在使用同一個 Bot Token")
+            print("   3. 確認沒有過多的 slash command sync 調用")
+        raise
