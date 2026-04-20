@@ -3222,8 +3222,11 @@ class DeleteReplyConfirmationView(View):
 
 if __name__ == "__main__":
     # 在單獨的線程中運行 HTTP 服務器
+    class ReuseAddrTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+
     def start_http_server():
-        with socketserver.TCPServer(("", PORT), HealthCheckHandler) as httpd:
+        with ReuseAddrTCPServer(("", PORT), HealthCheckHandler) as httpd:
             print(f"🌐 HTTP 服務器已啟動，監聽端口 {PORT}")
             httpd.serve_forever()
     
