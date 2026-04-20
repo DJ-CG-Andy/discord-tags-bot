@@ -3265,10 +3265,11 @@ if __name__ == "__main__":
     # 等待 HTTP 服務器完全啟動
     import time
 
-    # 延遲以等待 API 速率限制重置（5分鐘）
-    print("⏳ 等待 300 秒後再啟動 Bot（等待 API 速率限制重置）...")
-    print("💡 如遇到 429 錯誤，可能是之前的延遲不夠，請等待更長時間...")
-    time.sleep(300)
+    # 延遲以等待 API 速率限制/Cloudflare 封鎖重置（1小時 = 3600秒）
+    print("⏳ 等待 3600 秒後再啟動 Bot（等待 API 速率限制/Cloudflare 封鎖重置）...")
+    print("💡 這可能是 Cloudflare 暫時封鎖，請耐心等待 1 小時...")
+    print("💡 如超過 1 小時後仍有問題，可能需要聯繫 Discord 支援...")
+    time.sleep(3600)
 
     # 啟動 Bot
     print("🚀 正在啟動 Discord 標籤系統 Bot...")
