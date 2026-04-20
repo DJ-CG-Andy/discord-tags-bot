@@ -3235,10 +3235,32 @@ if __name__ == "__main__":
     
     # 等待 HTTP 服務器完全啟動
     import time
-    print("⏳ 等待 10 秒後再啟動 Bot（避免 API 速率限制）...")
-    time.sleep(10)
-    
-    # 啟動 Bot
-    print("🚀 正在啟動 Discord 標籤系統 Bot...")
-    print("🤖 啟動 Discord Bot...")
-    bot.run(token)
+    import asyncio
+
+    # 更長的延遲以避免 API 速率限制
+    print("⏳ 等待 60 秒後再啟動 Bot（避免 API 速率限制）...")
+    time.sleep(60)
+
+    # 添加重試邏輯處理 429 錯誤
+    max_retries = 3
+    retry_delay = 30  # 秒
+
+    for attempt in range(max_retries):
+        try:
+            print("🚀 正在啟動 Discord 標籤系統 Bot...")
+            print("🤖 啟動 Discord Bot...")
+            bot.run(token)
+            break  # 如果成功，跳出循環
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str:
+                print(f"⚠️ 429 速率限制錯誤，第 {attempt + 1} 次重試...")
+                if attempt < max_retries - 1:
+                    print(f"⏳ 等待 {retry_delay} 秒後重試...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # 指數退避
+                else:
+                    print("❌ 已達最大重試次數")
+                    raise
+            else:
+                raise  # 其他錯誤直接拋出
