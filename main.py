@@ -1082,6 +1082,7 @@ async def on_ready():
         await menu_command(ctx)
     
     @bot.tree.command(name="checkin", description="每日簽到")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_checkin(interaction: discord.Interaction):
         """斜線版本 checkin"""
         await interaction.response.defer()
@@ -1101,6 +1102,7 @@ async def on_ready():
         await checkin_command(ctx)
     
     @bot.tree.command(name="leaderboard", description="簽到排行榜")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_leaderboard(interaction: discord.Interaction):
         """斜線版本 leaderboard - 带选择菜单"""
         guild_id = str(interaction.guild.id)
@@ -1152,6 +1154,7 @@ async def on_ready():
         await interaction.response.send_message(embed=embed, view=view)
     
     @bot.tree.command(name="setcheckin", description="設置簽到頻道和時間")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_setcheckin(interaction: discord.Interaction):
         """斜線版本 setcheckin"""
         await interaction.response.defer()
@@ -1171,6 +1174,7 @@ async def on_ready():
         await setcheckin_command(ctx)
     
     @bot.tree.command(name="check_config", description="檢查簽到配置")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_check_config(interaction: discord.Interaction):
         """斜線版本 check_config"""
         await interaction.response.defer()
