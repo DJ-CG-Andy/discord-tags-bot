@@ -991,6 +991,17 @@ async def heartbeat_monitor():
         await asyncio.sleep(30)
 
 @bot.event
+async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    """處理斜線命令錯誤，包括冷卻時間錯誤"""
+    if isinstance(error, discord.app_commands.CommandOnCooldown):
+        await interaction.response.send_message(
+            f"⏳ 此指令正在冷卻中，請等待 {int(error.retry_after)} 秒後再試！",
+            ephemeral=True
+        )
+    else:
+        await interaction.response.send_message(f"❌ 指令執行錯誤：{str(error)}", ephemeral=True)
+
+@bot.event
 async def on_ready():
     """Bot 啟動時執行"""
     print(f"✅ [{INSTANCE_ID}] {bot.user.name} 已啟動!")
@@ -1180,6 +1191,7 @@ async def on_ready():
     
     # ========== 刷版區斜線命令 ==========
     @bot.tree.command(name="setreply", description="設置刷版區頻道")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_setreply(interaction: discord.Interaction):
         """斜線版本 setreply - 設置刷版區"""
         guild_id = str(interaction.guild.id)
@@ -1192,6 +1204,7 @@ async def on_ready():
             await interaction.response.send_message("❌ 設置失敗！", ephemeral=True)
     
     @bot.tree.command(name="disablereply", description="關閉刷版區回覆功能")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_disablereply(interaction: discord.Interaction):
         """斜線版本 disablereply - 關閉刷版區"""
         guild_id = str(interaction.guild.id)
@@ -1203,6 +1216,7 @@ async def on_ready():
             await interaction.response.send_message("❌ 關閉失敗！", ephemeral=True)
     
     @bot.tree.command(name="replystatus", description="查看刷版區狀態")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_replystatus(interaction: discord.Interaction):
         """斜線版本 replystatus - 查看刷版區狀態"""
         await interaction.response.defer()
@@ -1229,6 +1243,7 @@ async def on_ready():
             await interaction.followup.send("❌ 刷版區功能尚未啟用！\n使用 `/setreply` 啟用", ephemeral=True)
     
     @bot.tree.command(name="listtriggers", description="查看刷版區觸發器列表")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_listtriggers(interaction: discord.Interaction):
         """斜線版本 listtriggers - 查看觸發器"""
         await interaction.response.defer()
@@ -1256,6 +1271,7 @@ async def on_ready():
         await interaction.followup.send(embed=embed, ephemeral=True)
     
     @bot.tree.command(name="addtrigger", description="新增刷版區觸發器")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_addtrigger(interaction: discord.Interaction):
         """斜線版本 addtrigger - 弹出确认对话框"""
         embed = discord.Embed(
@@ -1267,6 +1283,7 @@ async def on_ready():
         await interaction.response.send_message(embed=embed, view=view)
     
     @bot.tree.command(name="deltrigger", description="刪除刷版區觸發器")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_deltrigger(interaction: discord.Interaction):
         """斜線版本 deltrigger - 弹出确认对话框"""
         guild_id = str(interaction.guild.id)
@@ -1307,6 +1324,7 @@ async def on_ready():
         await interaction.response.send_message("選擇要刪除的觸發器：", view=view, ephemeral=True)
     
     @bot.tree.command(name="replyleaderboard", description="刷版區排行榜")
+    @app_commands.cooldown(1, 2, key=None)
     async def slash_reply_leaderboard(interaction: discord.Interaction):
         """刷版區回覆排行榜"""
         guild_id = str(interaction.guild.id)
