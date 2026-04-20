@@ -3232,7 +3232,8 @@ if __name__ == "__main__":
     
     # 等待 HTTP 服務器完全啟動
     import time
-    time.sleep(2)
+    print("⏳ 等待 10 秒後再啟動 Bot（避免 API 速率限制）...")
+    time.sleep(10)
     
     # 啟動 Bot
     print("🚀 正在啟動 Discord 標籤系統 Bot...")
