@@ -1047,12 +1047,7 @@ async def on_ready():
     # 啟動心跳檢測任務
     bot.loop.create_task(heartbeat_monitor())
     
-    # 同步斜線命令（只在首次啟動時執行）
-    try:
-        synced = await bot.tree.sync()
-        print(f"✅ 已同步 {len(synced)} 個斜線命令")
-    except Exception as e:
-        print(f"⚠️ 同步斜線命令失敗: {e}")
+    # 斜線命令會自動同步，不需要手動 sync()
     
     # ========== 斜線命令 (與前綴命令並用) ==========
     @bot.tree.command(name="menu", description="打開交互式菜單")
@@ -1381,13 +1376,6 @@ async def on_ready():
             color=discord.Color.purple()
         )
         await interaction.response.send_message(embed=embed, view=view)
-    
-    # 同步斜線命令
-    try:
-        synced = await bot.tree.sync()
-        print(f"✅ 已同步 {len(synced)} 個斜線命令")
-    except Exception as e:
-        print(f"⚠️ 同步斜線命令失敗: {e}")
 
 # ========== 主菜單 ==========
 
