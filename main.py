@@ -1047,16 +1047,12 @@ async def on_ready():
     # 啟動心跳檢測任務
     bot.loop.create_task(heartbeat_monitor())
     
-    # 清除舊的斜線命令
+    # 同步斜線命令（只在首次啟動時執行）
     try:
-        print("🔄 清除舊的斜線命令...")
-        synced_commands = await bot.tree.sync()
-        if synced_commands:
-            print(f"✅ 已清除 {len(synced_commands)} 個斜線命令")
-        else:
-            print("✅ 沒有舊的斜線命令需要清除")
+        synced = await bot.tree.sync()
+        print(f"✅ 已同步 {len(synced)} 個斜線命令")
     except Exception as e:
-        print(f"⚠️ 清除斜線命令時發生錯誤: {e}")
+        print(f"⚠️ 同步斜線命令失敗: {e}")
     
     # ========== 斜線命令 (與前綴命令並用) ==========
     @bot.tree.command(name="menu", description="打開交互式菜單")
