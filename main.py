@@ -1007,13 +1007,6 @@ async def on_ready():
     print(f"✅ [{INSTANCE_ID}] {bot.user.name} 已啟動!")
     print(f"✅ 服務器: {len(bot.guilds)}")
     print(f"✅ 前綴: {config.get('prefix', '!')}")
-
-    # 檢查 Discord API 速率限制狀態
-    global_rate_limit = bot.http.global_rate_limit
-    if global_rate_limit:
-        remaining = global_rate_limit.remaining
-        reset_time = global_rate_limit.reset_time
-        print(f"🔍 API 速率限制: 剩餘 {remaining} 次, 重置時間 {reset_time}")
     
     # 初始化數據庫
     print(f"🔍 資料庫路徑: {DB_PATH}", flush=True)
