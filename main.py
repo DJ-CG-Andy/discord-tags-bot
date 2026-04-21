@@ -3262,31 +3262,11 @@ if __name__ == "__main__":
     http_thread = Thread(target=start_http_server, daemon=True)
     http_thread.start()
     
-    # 等待 HTTP 服務器完全啟動
-    import time
-
-    # 延遲以等待 API 速率限制/Cloudflare 封鎖重置（1小時 = 3600秒）
-    print("⏳ 等待 3600 秒後再啟動 Bot（等待 API 速率限制/Cloudflare 封鎖重置）...")
-    print("💡 這可能是 Cloudflare 暫時封鎖，請耐心等待 1 小時...")
-    print("💡 如超過 1 小時後仍有問題，可能需要聯繫 Discord 支援...")
-    time.sleep(3600)
-
     # 啟動 Bot
     print("🚀 正在啟動 Discord 標籤系統 Bot...")
     print("🤖 啟動 Discord Bot...")
 
-    # 添加錯誤處理
-    try:
-        bot.run(token)
-    except Exception as e:
-        error_msg = str(e)
-        print(f"❌ Bot 啟動錯誤: {error_msg}")
-
-        # 檢查是否為 429 錯誤
-        if "429" in error_msg or "Too Many Requests" in error_msg:
-            print("⚠️ 429 速率限制仍然存在")
-            print("💡 解決方案:")
-            print("   1. 等待更長時間（建議 30 分鐘到 1 小時）")
-            print("   2. 檢查是否有其他程式也在使用同一個 Bot Token")
-            print("   3. 確認沒有過多的 slash command sync 調用")
-        raise
+    # 啟動 Bot
+    print("🚀 正在啟動 Discord 標籤系統 Bot...")
+    print("🤖 啟動 Discord Bot...")
+    bot.run(token)
