@@ -12,7 +12,7 @@ from checkin_manager import CheckinManager
 class CheckinButton(discord.ui.Button):
     """簽到按鈕"""
     def __init__(self, checkin_manager: CheckinManager, gif_url: str):
-        super().__init__(style=discord.ButtonStyle.primary, label="✨ 簽到", emoji="✨")
+        super().__init__(style=discord.ButtonStyle.primary, label="✨ 簽到", emoji="✨", custom_id="persistent_checkin_button")
         self.checkin_manager = checkin_manager
         self.gif_url = gif_url
     

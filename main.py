@@ -1039,6 +1039,10 @@ async def on_ready():
     message_handler = MessageHandler(bot, db, tag_manager)
     history_processor = HistoryProcessor(bot, db, tag_manager)
     _checkin_initialized = True
+
+    # 註冊持久化簽到按鈕視圖（讓重啟後舊按鈕仍可用）
+    from checkin_system import CheckinView
+    bot.add_view(CheckinView(checkin_manager))
     
     # 設置狀態
     await bot.change_presence(
@@ -1219,6 +1223,15 @@ async def on_ready():
         else:
             await interaction.response.send_message("❌ 設定失敗", ephemeral=True)
     
+    @bot.tree.command(name="setcheckin", description="⚠️ 已改名，請使用 /checkin-starter")
+    @commands.cooldown(1, 5)
+    async def slash_old_setcheckin(interaction: discord.Interaction):
+        """舊版 setcheckin（重新導向）"""
+        await interaction.response.send_message(
+            "⚠️ 此指令已改名為 `/checkin-starter`，請使用新指令設定簽到系統",
+            ephemeral=True
+        )
+
     @bot.tree.command(name="check_config", description="檢查簽到配置")
     @commands.cooldown(1, 5)
     async def slash_check_config(interaction: discord.Interaction):
