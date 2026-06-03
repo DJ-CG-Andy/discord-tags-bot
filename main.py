@@ -1180,7 +1180,7 @@ async def on_ready():
         )
         await interaction.response.send_message(embed=embed, view=view)
     
-    @bot.tree.command(name="checkin-starter", description="設定簽到 GIF/貼圖（管理員）")
+    @bot.tree.command(name="checkin-starter", description="設定簽到 GIF/貼圖（管理員設定用）")
     @app_commands.describe(
         gif_url="簽到用的 GIF 或圖片網址",
         channel="簽到頻道（預設為當前頻道）",
@@ -1188,7 +1188,7 @@ async def on_ready():
     )
     @commands.cooldown(1, 5)
     async def slash_checkin_starter(interaction: discord.Interaction, gif_url: str, channel: discord.TextChannel = None, time: str = "00:00"):
-        """設定簽到 GIF/貼圖（管理員）"""
+        """設定簽到 GIF/貼圖（管理員設定用）"""
         if not interaction.user.guild_permissions.administrator:
             await interaction.response.send_message("❌ 你沒有權限使用此命令（需要管理員權限）", ephemeral=True)
             return
@@ -1223,15 +1223,6 @@ async def on_ready():
         else:
             await interaction.response.send_message("❌ 設定失敗", ephemeral=True)
     
-    @bot.tree.command(name="setcheckin", description="⚠️ 已改名，請使用 /checkin-starter")
-    @commands.cooldown(1, 5)
-    async def slash_old_setcheckin(interaction: discord.Interaction):
-        """舊版 setcheckin（重新導向）"""
-        await interaction.response.send_message(
-            "⚠️ 此指令已改名為 `/checkin-starter`，請使用新指令設定簽到系統",
-            ephemeral=True
-        )
-
     @bot.tree.command(name="check_config", description="檢查簽到配置")
     @commands.cooldown(1, 5)
     async def slash_check_config(interaction: discord.Interaction):
