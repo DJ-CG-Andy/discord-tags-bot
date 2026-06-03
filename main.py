@@ -1084,22 +1084,45 @@ async def on_ready():
     @bot.tree.command(name="checkin", description="每日簽到")
     @commands.cooldown(1, 5)
     async def slash_checkin(interaction: discord.Interaction):
-        """斜線版本 checkin"""
-        await interaction.response.defer()
-        
-        class SlashCtx:
-            def __init__(self, interaction):
-                self.user = interaction.user
-                self.author = interaction.user
-                self.channel = interaction.channel
-                self.guild = interaction.guild
-                self.interaction = interaction
-            
-            async def send(self, content=None, **kwargs):
-                await self.interaction.followup.send(content, **kwargs, ephemeral=False)
-        
-        ctx = SlashCtx(interaction)
-        await checkin_command(ctx)
+        """每日簽到 - 自動簽到並顯示設定的 GIF"""
+        guild_id = str(interaction.guild_id)
+        user_id = str(interaction.user.id)
+
+        config = await checkin_manager.get_config(guild_id)
+        if not config:
+            await interaction.response.send_message("❌ 管理員尚未設定簽到系統，請聯絡管理員使用 `/checkin-starter` 設定", ephemeral=True)
+            return
+
+        success, total, streak = await checkin_manager.checkin(user_id, guild_id)
+
+        if success:
+            embed = discord.Embed(
+                title="✅ 簽到成功！",
+                description=f"<@{user_id}> 今日簽到完成！",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="總簽到次數", value=f"🎯 {total} 次", inline=True)
+            embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
+            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF/貼圖都可以簽到", inline=False)
+            embed.set_footer(text="每天同一時間，記得簽到喔！")
+
+            if config.get('gif_url'):
+                embed.set_image(url=config['gif_url'])
+
+            await interaction.response.send_message(embed=embed)
+        else:
+            embed = discord.Embed(
+                title="⚠️ 已簽到",
+                description=f"<@{user_id}> 你今天已經簽到過了！",
+                color=discord.Color.orange()
+            )
+            embed.add_field(name="總簽到次數", value=f"🎯 {total} 次", inline=True)
+            embed.add_field(name="連續簽到", value=f"🔥 {streak} 天", inline=True)
+            embed.add_field(name="簽到方式", value="點擊按鈕或發送簽到 GIF/貼圖都可以簽到", inline=False)
+            embed.add_field(name="明天再來", value="過了午夜 00:00 就可以再次簽到", inline=False)
+            embed.set_footer(text="每天同一時間，記得簽到喔！")
+
+            await interaction.response.send_message(embed=embed)
     
     @bot.tree.command(name="leaderboard", description="簽到排行榜")
     @commands.cooldown(1, 5)
@@ -1153,25 +1176,48 @@ async def on_ready():
         )
         await interaction.response.send_message(embed=embed, view=view)
     
-    @bot.tree.command(name="setcheckin", description="設置簽到頻道和時間")
+    @bot.tree.command(name="checkin-starter", description="設定簽到 GIF/貼圖（管理員）")
+    @app_commands.describe(
+        gif_url="簽到用的 GIF 或圖片網址",
+        channel="簽到頻道（預設為當前頻道）",
+        time="簽到時間（預設 00:00，格式 HH:MM）"
+    )
     @commands.cooldown(1, 5)
-    async def slash_setcheckin(interaction: discord.Interaction):
-        """斜線版本 setcheckin"""
-        await interaction.response.defer()
-        
-        class SlashCtx:
-            def __init__(self, interaction):
-                self.user = interaction.user
-                self.author = interaction.user
-                self.channel = interaction.channel
-                self.guild = interaction.guild
-                self.interaction = interaction
-            
-            async def send(self, content=None, **kwargs):
-                await self.interaction.followup.send(content, **kwargs, ephemeral=True)
-        
-        ctx = SlashCtx(interaction)
-        await setcheckin_command(ctx)
+    async def slash_checkin_starter(interaction: discord.Interaction, gif_url: str, channel: discord.TextChannel = None, time: str = "00:00"):
+        """設定簽到 GIF/貼圖（管理員）"""
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ 你沒有權限使用此命令（需要管理員權限）", ephemeral=True)
+            return
+
+        channel = channel or interaction.channel
+
+        try:
+            datetime.strptime(time, "%H:%M")
+        except ValueError:
+            await interaction.response.send_message("❌ 時間格式錯誤！請使用 HH:MM 格式（例如: 00:00）", ephemeral=True)
+            return
+
+        success = await checkin_manager.set_config(
+            str(interaction.guild_id),
+            str(channel.id),
+            time,
+            gif_url
+        )
+
+        if success:
+            embed = discord.Embed(
+                title="✅ 簽到設定成功",
+                description="簽到系統已設定完成",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="簽到頻道", value=channel.mention, inline=True)
+            embed.add_field(name="簽到時間", value=time, inline=True)
+            embed.set_image(url=gif_url)
+            embed.add_field(name="注意", value="每天會在設定的時間自動發送簽到訊息", inline=False)
+
+            await interaction.response.send_message(embed=embed)
+        else:
+            await interaction.response.send_message("❌ 設定失敗", ephemeral=True)
     
     @bot.tree.command(name="check_config", description="檢查簽到配置")
     @commands.cooldown(1, 5)
