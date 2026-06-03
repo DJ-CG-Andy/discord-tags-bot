@@ -1458,6 +1458,24 @@ async def on_ready():
         )
         await interaction.response.send_message(embed=embed, view=view)
 
+    # 手動同步斜線命令，確保新指令生效
+    try:
+        # 先同步到特定伺服器（如果有的話）
+        server_id = os.getenv("DISCORD_SERVER_ID")
+        if server_id:
+            guild = bot.get_guild(int(server_id))
+            if guild:
+                synced = await bot.tree.sync(guild=guild)
+                print(f"✅ 已同步 {len(synced)} 個斜線命令到伺服器 {guild.name}", flush=True)
+        
+        # 同步全域命令
+        synced = await bot.tree.sync()
+        print(f"✅ 已同步 {len(synced)} 個全域斜線命令", flush=True)
+    except Exception as e:
+        print(f"❌ 同步斜線命令失敗: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+
 # ========== 主菜單 ==========
 
 class MainMenuView(View):
